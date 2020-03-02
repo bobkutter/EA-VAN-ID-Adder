@@ -1,0 +1,45 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>350 Seattle Donations</title>
+  <link rel="stylesheet" href="css/skeleton.css">
+  <link rel="stylesheet" href="css/pwd.css">
+  <script type="text/javascript" src="js/pwd.js"></script>
+</head>
+<body>
+  <div class="container">
+
+    <h3>Enter your password:</h3>
+    <div class="row">
+      <div class="four columns">
+        <label for="password">Password</label>
+        <input class="u-full-width" id="password" type="password" pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}">
+      </div>
+      <div class="two columns">
+        <label for="submit" class="invisible">x</label>
+        <input class="button-primary" value="Submit" id="submit" type="button">
+      </div>
+      <div class="two columns">
+        <label for="cancel" class="invisible">x</label>
+        <input class="button-primary" value="Cancel" id="cancel" type="button">
+      </div>
+
+      <table class="u-full-width">
+        <tbody id="table-pwd-results">
+        </tbody>
+      </table>
+
+  </div>
+
+  <script type="text/javascript">
+    var remote = require('electron').remote;
+    document.addEventListener('keydown', function (e) {
+      if (e.which === 123) {
+        remote.getCurrentWindow().webContents.openDevTools();
+      } else if (e.which === 116) {
+        location.reload();
+      }
+    });
+  </script>
+</body>
+</html>
