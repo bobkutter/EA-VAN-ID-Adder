@@ -1,5 +1,5 @@
 {
-  "name": "donations-350S",
+  "name": "EA VAN ID Adder",
   "version": "1.0.0",
   "description": "Augment 350 Seattle donation spreadsheets with VAN IDs",
   "main": "main.js",
