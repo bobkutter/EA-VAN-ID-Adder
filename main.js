@@ -1,5 +1,5 @@
 const electron = require('electron')
-const {app, BrowserWindow, Menu} = electron
+const {app, BrowserWindow} = electron
 const path = require('path')
 const url = require('url')
 const { ipcMain } = require('electron');
@@ -47,7 +47,6 @@ function openPasswordWindow() {
     slashes: true
   }))
 
-  passwordWindow.setMenu(null)
   passwordWindow.once('ready-to-show', () => {
     passwordWindow.show()
   })
