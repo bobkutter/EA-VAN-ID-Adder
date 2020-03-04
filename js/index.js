@@ -28,8 +28,8 @@ const USER_KEY = '4'
 var augmentResults = []
 var missingPersons = []
 
-function validatePassword(passText)
-{
+function validatePassword(passText) {
+
   var advice = []
   if (passText.length < 8) {
     advice.push('Must be at least eight characters.')
@@ -69,6 +69,7 @@ function validatePassword(passText)
 }
 
 window.onload = function() {
+
   thisWindow = window
 
   // Fetch settings from previous uses
@@ -93,13 +94,12 @@ window.onload = function() {
     }
   })
 
-
   populateTableMainWithPassword()
-
 }
 
 // Populates the main command table
 function populateTableMainWithPassword() {
+
   // Generate the table body
   var tableBody = '<tr>'
   tableBody += '<input type="password" class="four columns" placeholder="Enter password" id="password" pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}">'
@@ -115,6 +115,7 @@ function populateTableMainWithPassword() {
 }
 
 function handleSubmittedPassword() {
+
   password = document.getElementById('password')
   if (validatePassword(password.value))
   {
@@ -152,10 +153,10 @@ function handleOpen() {
     result => handleOpenResult(result['filePaths'][0]),
     error => alert(error)
   )
-
 }
 
 function handleOpenResult(fileName) {
+
   // Show file name in the text box
   if (typeof(fileName) == 'undefined') {
     populateTableMainWithAdder('')
@@ -163,7 +164,6 @@ function handleOpenResult(fileName) {
     populateTableMainWithAdder(fileName)
     populateTableResults(['Click "ADD VAN IDS" to add VAN IDs to workbook'])
   }
-
 }
 
 function handleAugment() {
@@ -174,7 +174,6 @@ function handleAugment() {
   } else {
     populateTableResults(['Click Open to select file'])
   }
-
 }
 
 // Populates the results table
@@ -236,7 +235,6 @@ function populateTableSettings(all) {
 
   // Fill the table content
   document.getElementById('table-settings').innerHTML = tableBody
-
 }
 
 // saves values then clears the settings table
@@ -271,8 +269,8 @@ function saveTableSettings() {
 }
 
 function createTableSettingsButton() {
-  let tableBody = '<td></td><tr>'
 
+  let tableBody = '<td></td><tr>'
   tableBody += '<td><input type="button" value="Settings"' + btnColor + 'onclick="populateTableSettings(true)"></td>'
   tableBody += '</tr>'
 
@@ -372,6 +370,7 @@ function writeNewWorkbook(closure) {
 }
 
 function showDetails() {
+
   augmentResults.pop()
   augmentResults.push('<td><input type="button" value="Hide Missing Persons"' + btnColor + 'onclick="hideDetails()"></td>')
   populateTableResults(augmentResults)
@@ -387,6 +386,7 @@ function showDetails() {
 }
 
 function hideDetails() {
+
   augmentResults.pop()
 
   augmentResults.push('<td><input type="button" value="Show Missing Persons"' + btnColor + 'onclick="showDetails()"></td>')
@@ -404,12 +404,13 @@ function findHeaderInfo(keys, pattern) {
   }
 
   throw {
-    name:"File Format Error",
+    name:'File Format Error',
     message:'Could not locate '+pattern+' column in header row'
   }
 }
 
 function insertVANID(jRow, vanID, emailKey, firstNameKey, lastNameKey, fnc, closure) {
+
   vanID = postRequest(jRow[emailKey], jRow[firstNameKey], jRow[lastNameKey], function(vid) {
     jRow['VANID'] = vid
 
@@ -424,6 +425,7 @@ function insertVANID(jRow, vanID, emailKey, firstNameKey, lastNameKey, fnc, clos
 }
 
 function postRequest(emailAddr, firstName, lastName, fnc) {
+
   var vanID = ''
   const username = apiUser + ':' + apiKey + '|1';
 
