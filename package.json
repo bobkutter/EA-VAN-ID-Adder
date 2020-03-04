@@ -1,7 +1,7 @@
 {
   "name": "EA-VAN-ID-Adder",
   "version": "1.0.0",
-  "description": "Add EveryAction VAN IDs to a spreadsheet.",
+  "description": "Add EveryAction VAN IDs to a workbook sheet",
   "main": "main.js",
   "scripts": {
     "start": "electron ."
@@ -9,7 +9,7 @@
   "author": "Bob Kutter",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^1.8.8"
+    "electron": "^8.0.3"
   },
   "dependencies": {
     "cryptr": "^6.0.1",

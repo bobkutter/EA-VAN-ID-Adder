@@ -2,6 +2,8 @@
 <head>
   <meta charset="utf-8">
   <title>Add VAN ID to spreadsheet</title>
+  <!-- https://electronjs.org/docs/tutorial/security#csp-meta-tag -->
+  <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';" />
   <link rel="stylesheet" href="css/skeleton.css">
   <link rel="stylesheet" href="css/index.css">
   <script type="text/javascript" src="js/index.js"></script>
@@ -10,32 +12,21 @@
   <div class="container">
 
     <h3 style="text-align: center">VAN ID Adder</h3>
-    <div class="row">
-      <div class="two columns">
-        <label for="open" class="invisible">x</label>
-        <input class="button-primary" value="Open" id="open" type="button">
-      </div>
-      <div class="eight columns">
-        <label for="workbook">Workbook file</label>
-        <input class="u-full-width" placeholder="Click Open to select file" id="workbook" type="text">
-      </div>
-      <div class="two columns">
-        <label for="augment" class="invisible">x</label>
-        <input class="button-primary" value="Add VAN IDs" id="augment" type="button">
-      </div>
-    </div>
+
+    <table class="u-full-width">
+      <tbody id="table-main">
+      </tbody>
+    </table>
 
     <table class="u-full-width">
       <tbody id="table-results">
       </tbody>
     </table>
 
-    <div class="row">
-      <div class="two columns">
-        <label for="settings" class="invisible">x</label>
-        <input class="button-primary" value="Settings" id="settings" type="button">
-      </div>
-    </div>
+    <table class="u-full-width">
+      <tbody id="table-missing-persons">
+      </tbody>
+    </table>
 
     <table class="u-full-width">
       <tbody id="table-settings">

@@ -1,90 +1,43 @@
-const electron = require('electron')
-const {app, BrowserWindow} = electron
-const path = require('path')
-const url = require('url')
-const { ipcMain } = require('electron');
+const { app, BrowserWindow } = require('electron')
 
-// Keep a global reference so the garbage collector does not destroy our app
-let mainWindow
-
-// Keep a global reference so we can pass info between windows
-let passwordWindow
-
-// Creates the main window.
-function createMainWindow () {
-
-  mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 720
-  })
-
-  // Load the index.html file
-  mainWindow.loadURL(url.format({
-    pathname: path.join(__dirname, 'index.html'),
-    protocol: 'file:',
-    slashes: true
-  }))
-
-  mainWindow.on('closed', () => {
-    mainWindow = null
-  })
-}
-
-// Opens the password window
-function openPasswordWindow() {
-
-  passwordWindow = new BrowserWindow({
-    parent: mainWindow,
-    modal: true,
-    show: false,
+function createWindow () {
+  // Create the browser window.
+  const win = new BrowserWindow({
     width: 1000,
-    height: 400
+    height: 800,
+    webPreferences: {
+      nodeIntegration: true
+    }
   })
 
-  passwordWindow.loadURL(url.format({
-    pathname: path.join(__dirname, 'pwd.html'),
-    protocol: 'file:',
-    slashes: true
-  }))
+  // and load the index.html of the app.
+  win.loadFile('index.html')
 
-  passwordWindow.once('ready-to-show', () => {
-    passwordWindow.show()
-  })
+  // Open the DevTools.
+  //win.webContents.openDevTools()
 }
 
-// Attach event listener to event that requests to update something in the main window
-// from the password window
-ipcMain.on('request-update-label-in-second-window', (event, arg) => {
-    // Request to update the label in the renderer process of the second window
-    // We'll send the same data that was sent to the main process
-    // Note: you can obviously send the
-    mainWindow.webContents.send('action-update-label', arg);
-});
+// This method will be called when Electron has finished
+// initialization and is ready to create browser windows.
+// Some APIs can only be used after this event occurs.
+app.whenReady().then(createWindow)
 
-
-// Create main and password windows when the app is ready
-app.on('ready', () => {
-  createMainWindow()
-  openPasswordWindow()
-  electron.powerMonitor.on('on-ac', () => {
-    mainWindow.restore()
-  })
-  electron.powerMonitor.on('on-battery', () => {
-    mainWindow.minimize()
-  })
-})
-
-// Quit when all windows are closed
+// Quit when all windows are closed.
 app.on('window-all-closed', () => {
+  // On macOS it is common for applications and their menu bar
+  // to stay active until the user quits explicitly with Cmd + Q
   if (process.platform !== 'darwin') {
     app.quit()
   }
 })
 
-// Reopen the app on macOS
 app.on('activate', () => {
-  if (mainWindow === null) {
-    createMainWindow()
-    openPasswordWindow()
+  // On macOS it's common to re-create a window in the app when the
+  // dock icon is clicked and there are no other windows open.
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow()
   }
 })
+
+// In this file you can include the rest of your app's specific main process
+// code. You can also put them in separate files and require them here.
