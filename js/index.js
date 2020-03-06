@@ -279,6 +279,8 @@ function createTableSettingsButton() {
 
 function augmentWorkbook(workbookName) {
 
+  populateTableResults(['Working...'])
+
   // Open specified file
   try {
     var workbook = xlsx.readFile(workbookName)
@@ -378,7 +380,7 @@ function showDetails() {
   // Generate the table body
   var tableBody = ''
   for (let i = 0; i < missingPersons.length; i++) {
-    tableBody += '<tr>' + missingPersons[i] + '</tr>'
+    tableBody += missingPersons[i]
   }
 
   // Fill the table content
@@ -397,7 +399,6 @@ function hideDetails() {
 function findHeaderInfo(keys, pattern) {
 
   for (let i = 0; i < keys.length; i++) {
-
     if (keys[i].toLowerCase().indexOf(pattern) != -1) {
       return keys[i]
     }
@@ -414,8 +415,13 @@ function insertVANID(jRow, vanID, emailKey, firstNameKey, lastNameKey, fnc, clos
   vanID = postRequest(jRow[emailKey], jRow[firstNameKey], jRow[lastNameKey], function(vid) {
     jRow['VANID'] = vid
 
-    if (vid == '') {
-      missingPersons.push(jRow[firstNameKey]+' '+jRow[lastNameKey]+' '+jRow[emailKey])
+    if (vid == null) {
+      let tableRow = '<tr>'
+      tableRow += '<td>'+jRow[firstNameKey]+'</td>'
+      tableRow += '<td>'+jRow[lastNameKey]+'</td>'
+      tableRow += '<td>'+jRow[emailKey]+'</td>'
+      tableRow += '</tr>'
+      missingPersons.push(tableRow)
     } else {
       closure.fnd++
     }

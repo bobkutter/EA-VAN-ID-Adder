@@ -4,11 +4,8 @@ let db = new Datastore({ filename: 'db/settings.db', autoload: true })
 
 exports.update = function(key, value) {
 
-  console.log('update'+key+' with '+value)
   db.remove({"key": key}, {}, function(err, numRemoved) {
-    console.log('inside remove')
     db.insert({"key": key, "value": value}, function(err, newDocs) {
-      console.log('inside insert')
     })
   })
 }
