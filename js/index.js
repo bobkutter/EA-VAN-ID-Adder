@@ -6,6 +6,8 @@ var request = ''
 
 let cryptr
 
+var thisWindow;
+
 // Set before password is available
 let encryptedApiKey = ''
 
@@ -16,6 +18,7 @@ let apiHost = ''
 let apiPath = ''
 let apiUser = ''
 
+const shtSuffix = ' with VANIDs'
 const btnColor = ' style="background-color:#33C3F0;color:#FFF" '
 
 // Use numbers rather than names to make db content less obvious
@@ -270,11 +273,18 @@ function saveTableSettings() {
 
 function createTableSettingsButton() {
 
-  let tableBody = '<td></td><tr>'
-  tableBody += '<td><input type="button" value="Settings"' + btnColor + 'onclick="populateTableSettings(true)"></td>'
-  tableBody += '</tr>'
+  let tableBody = '<tr><td>'
+  tableBody += '<input type="button" value="Exit" class="two columns"' + btnColor + 'onclick="exitApp()">'
+  tableBody += '</td></tr><tr><td>'
+  tableBody += '<input type="button" value="Settings"' + btnColor + 'onclick="populateTableSettings(true)">'
+  tableBody += '</td></tr>'
 
   return tableBody
+}
+
+function exitApp() {
+  thisWindow.close()
+  thisWindow = null;
 }
 
 function augmentWorkbook(workbookName) {
@@ -296,8 +306,8 @@ function augmentWorkbook(workbookName) {
 
   // Check if augmented sheet already exists
   for (let i = 0; i < workbook.SheetNames.length; i++) {
-    if (workbook.SheetNames[i] == sheetName+' with VANIDs') {
-      populateTableResults(['Sheet "'+sheetName+' with VANIDs" already exists in the "'+workbookName+'" workbook. Please remove this sheet.'])
+    if (workbook.SheetNames[i] == sheetName+shtSuffix) {
+      populateTableResults(['Sheet "'+sheetName+shtSuffix+'" already exists in the "'+workbookName+'" workbook. Please remove this sheet.'])
       return
     }
   }
@@ -356,14 +366,14 @@ function writeNewWorkbook(closure) {
 
   const xNewSheet = xlsx.utils.json_to_sheet(jSheet,{header:keys})
   try {
-    xlsx.utils.book_append_sheet(workbook, xNewSheet, sheetName+' with VANIDs')
+    xlsx.utils.book_append_sheet(workbook, xNewSheet, sheetName+shtSuffix)
     xlsx.writeFile(workbook, workbookName)
   } catch (e) {
     populateTableResults([+e.message])
     return
   }
 
-  augmentResults = ['Created new "'+sheetName+' with VANIDs" sheet in '+workbookName+'.']
+  augmentResults = ['Created new "'+sheetName+shtSuffix+'" sheet in '+workbookName+'.']
   augmentResults.push('Added VAN IDs to '+found+' out of '+total+' rows.')
   if (found != total) {
     augmentResults.push('<td><input type="button" value="Show Missing Persons"' + btnColor + 'onclick="showDetails()"></td>')
