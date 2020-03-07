@@ -27,13 +27,13 @@ const HOST_KEY = '2'
 const PATH_KEY = '3'
 const USER_KEY = '4'
 
-// Global variables because I couldn't figure out how to pass arg to showDetails
+// Global variables because I couldn't figure out how to pass arg to showMissingPersons
 var augmentResults = []
 var missingPersons = []
 
-function validatePassword(passText) {
+function validatePassword(passText, advice, decrypt=true) {
 
-  var advice = []
+  //advice = []
   if (passText.length < 8) {
     advice.push('Must be at least eight characters.')
   }
@@ -51,23 +51,28 @@ function validatePassword(passText) {
   }
 
   if (advice.length > 0) {
-    populateTableResults(advice)
+    console.log('validate returning false 1')
     return false
   }
 
-  // User entered valid string.
-  cryptr = new Cryptr(passText)
+  if (decrypt)
+  {
+    // User entered valid string.
+    cryptr = new Cryptr(passText)
 
-  // If we have apiKey from previous uses, fetch it to test password decrypt
-  if (encryptedApiKey.length > 0) {
-    try {
-      apiKey = cryptr.decrypt(encryptedApiKey)
-    } catch (e) {
-      populateTableResults(['Invalid password: Could not authenticate.'])
-      return false
+    // If we have apiKey from previous uses, fetch it to test password decrypt
+    if (encryptedApiKey.length > 0) {
+      try {
+        apiKey = cryptr.decrypt(encryptedApiKey)
+      } catch (e) {
+        advice.push('Invalid password: Could not authenticate.')
+        console.log('validate returning false 2')
+        return false
+      }
     }
   }
 
+  console.log('validate returning true')
   return true
 }
 
@@ -104,27 +109,131 @@ window.onload = function() {
 function populateTableMainWithPassword() {
 
   // Generate the table body
-  var tableBody = '<tr>'
-  tableBody += '<input type="password" class="four columns" placeholder="Enter password" id="password" pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}">'
-  tableBody += '<input type="button"  class="two columns" value="Submit"' + btnColor + 'onclick="handleSubmittedPassword()">'
+  var tableBody = ''
+  tableBody += '<tr>'
+  tableBody += '<p>Must contain at least one number and one uppercase and lowercase letter, and at least 8 or more characters.</p>'
   tableBody += '</tr>'
-  tableBody += '<tr> Must contain at least one number and one uppercase and lowercase letter, and at least 8 or more characters.</tr>'
 
+  tableBody += '<tr>'
+  tableBody += '<input type="password" class="four columns" placeholder="Enter password" id="password" pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}">'
+  tableBody += '<input type="button"  class="two columns" id="submit" value="Submit"' + btnColor + 'onclick="handleSubmittedPassword()">'
+  tableBody += '</tr>'
+  //tableBody += '<tr><td></td></tr>'
 
   // Fill the table content
   document.getElementById('table-main').innerHTML = tableBody
 
-  document.getElementById('password').focus()
+  tableBody = '<tr>'
+  tableBody += '<p>To change password, enter new password twice.</p>'
+  tableBody += '</tr>'
+  tableBody += '<tr>'
+  tableBody += '<input type="password" class="four columns" placeholder="Enter new password" id="npwd">'
+  tableBody += '<input type="password" class="four columns" placeholder="Confirm new password" id="cpwd">'
+  tableBody += '<input type="button" class="three columns" value="Change"' + btnColor + 'onclick="changePassword()">'
+  tableBody += '</tr>'
+
+  // Fill the table content
+  document.getElementById('sub-table-results').innerHTML = tableBody
+
+  // put cursor in text input
+  var input = document.getElementById('password')
+  input.focus()
+
+  // treat enter key like submit button
+  input.addEventListener("keyup", function(event) {
+  // Number 13 is the "Enter" key on the keyboard
+    if (event.keyCode === 13) {
+      // Cancel the default action, if needed
+      event.preventDefault();
+      // Trigger the button element with a click
+      document.getElementById('submit').click();
+    }
+  });
 }
 
 function handleSubmittedPassword() {
 
+  let advice = []
+
   password = document.getElementById('password')
-  if (validatePassword(password.value))
+  if (validatePassword(password.value, advice))
   {
-    populateTableMainWithAdder('')
-    populateTableSettings(false)
+    switchToAddrScreen()
+  } else {
+    populateTableResults(advice)
   }
+}
+
+function changePassword() {
+
+  let advice = []
+
+  console.log('changing password')
+  populateTableResults([])
+
+  password = document.getElementById('password')
+  console.log('old pwd: '+password.length)
+  if (password.value == '') {
+    showChangePwdResults(['Please enter existing password.'])
+    return
+  }
+  if (!validatePassword(password.value, advice))
+  {
+    console.log('existing pwd invalid')
+    populateTableResults(advice)
+    showChangePwdResults(['Please enter existing password.'])
+    return
+  }
+
+  advice = []
+
+  newPassword = document.getElementById('npwd')
+  if (!validatePassword(newPassword.value, advice, false)) {
+    console.log('new pwd invalid '+newPassword.value)
+    showChangePwdResults(advice)
+    return
+  }
+
+  advice = []
+
+  confirmedPwd = document.getElementById('cpwd')
+  if (confirmedPwd.value == '') {
+    showChangePwdResults(['Please confirm new password.'])
+    return
+  }
+  if (confirmedPwd.value != newPassword.value) {
+    showChangePwdResults(['New passwords do not match.'])
+    return
+  }
+
+  // update encrypted API Key on disk, then keep new password in memory
+  console.log('new pwd:'+newPassword.value+' apiKey:'+apiKey)
+  cryptr = new Cryptr(newPassword.value)
+  let encryptedString = cryptr.encrypt(apiKey)
+  database.update(API_KEY, encryptedString)
+  password = newPassword.value
+
+  showChangePwdResults(['New password accepted.'])
+
+  // Give user a chance to see success message
+  setTimeout(switchToAddrScreen, 1000);
+}
+
+function switchToAddrScreen() {
+
+  populateTableMainWithAdder('')
+  document.getElementById('sub-table-results').innerHTML = ''
+  populateTableSettings(false)
+}
+
+function showChangePwdResults(results) {
+
+  let tableBody = ''
+  for (let i = 0; i < results.length; i++) {
+    tableBody += '<tr>'+results[i]+'</tr>'
+  }
+
+  document.getElementById('table-settings').innerHTML = tableBody
 }
 
 // Populates the main command table
@@ -189,14 +298,14 @@ function populateTableResults(status) {
   }
 
   // Fill the table content
-  document.getElementById('table-results').innerHTML = tableBody
+  document.getElementById('main-table-results').innerHTML = tableBody
 }
 
 // clears the results table
 function clearTableResults() {
 
     // clear the table content
-    document.getElementById('table-results').innerHTML = ''
+    document.getElementById('main-table-results').innerHTML = ''
 }
 
 // Populates the settings table
@@ -376,15 +485,15 @@ function writeNewWorkbook(closure) {
   augmentResults = ['Created new "'+sheetName+shtSuffix+'" sheet in '+workbookName+'.']
   augmentResults.push('Added VAN IDs to '+found+' out of '+total+' rows.')
   if (found != total) {
-    augmentResults.push('<td><input type="button" value="Show Missing Persons"' + btnColor + 'onclick="showDetails()"></td>')
+    augmentResults.push('<td><input type="button" value="Show Missing Persons"' + btnColor + 'onclick="showMissingPersons()"></td>')
   }
   populateTableResults(augmentResults)
 }
 
-function showDetails() {
+function showMissingPersons() {
 
   augmentResults.pop()
-  augmentResults.push('<td><input type="button" value="Hide Missing Persons"' + btnColor + 'onclick="hideDetails()"></td>')
+  augmentResults.push('<td><input type="button" value="Hide Missing Persons"' + btnColor + 'onclick="hideMissingPersons()"></td>')
   populateTableResults(augmentResults)
 
   // Generate the table body
@@ -394,16 +503,16 @@ function showDetails() {
   }
 
   // Fill the table content
-  document.getElementById('table-missing-persons').innerHTML = tableBody
+  document.getElementById('sub-table-results').innerHTML = tableBody
 }
 
-function hideDetails() {
+function hideMissingPersons() {
 
   augmentResults.pop()
 
-  augmentResults.push('<td><input type="button" value="Show Missing Persons"' + btnColor + 'onclick="showDetails()"></td>')
+  augmentResults.push('<td><input type="button" value="Show Missing Persons"' + btnColor + 'onclick="showMissingPersons()"></td>')
   populateTableResults(augmentResults)
-  document.getElementById('table-missing-persons').innerHTML = ''
+  document.getElementById('sub-table-results').innerHTML = ''
 }
 
 function findHeaderInfo(keys, pattern) {
