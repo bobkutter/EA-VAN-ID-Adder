@@ -3,6 +3,7 @@
 
  # To build with npm
  npm install electron --save-dev
+
  npm install
 
  # To run with npm
@@ -16,4 +17,5 @@
 
  # To build installer with yarn
  yarn add electron-builder --dev
+
  yarn electron-builder
