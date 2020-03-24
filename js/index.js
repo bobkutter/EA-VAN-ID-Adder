@@ -119,22 +119,9 @@ function populateTableMainWithPassword() {
   tableBody += '<input type="password" class="four columns" placeholder="Enter password" id="password" pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}">'
   tableBody += '<input type="button"  class="two columns" id="submit" value="Submit"' + btnColor + 'onclick="handleSubmittedPassword()">'
   tableBody += '</tr>'
-  //tableBody += '<tr><td></td></tr>'
 
   // Fill the table content
   document.getElementById('table-main').innerHTML = tableBody
-
-  tableBody = '<tr>'
-  tableBody += '<p>To change password, enter new password twice.</p>'
-  tableBody += '</tr>'
-  tableBody += '<tr>'
-  tableBody += '<input type="password" class="four columns" placeholder="Enter new password" id="npwd">'
-  tableBody += '<input type="password" class="four columns" placeholder="Confirm new password" id="cpwd">'
-  tableBody += '<input type="button" class="three columns" value="Change"' + btnColor + 'onclick="changePassword()">'
-  tableBody += '</tr>'
-
-  // Fill the table content
-  document.getElementById('sub-table-results').innerHTML = tableBody
 
   // put cursor in text input
   var input = document.getElementById('password')
@@ -172,22 +159,6 @@ function changePassword() {
   console.log('changing password')
   populateTableResults([])
 
-  password = document.getElementById('password')
-  console.log('old pwd: '+password.length)
-  if (password.value == '') {
-    showChangePwdResults(['Please enter existing password.'])
-    return
-  }
-  if (!validatePassword(password.value, advice))
-  {
-    console.log('existing pwd invalid')
-    populateTableResults(advice)
-    showChangePwdResults(['Please enter existing password.'])
-    return
-  }
-
-  advice = []
-
   newPassword = document.getElementById('npwd')
   if (!validatePassword(newPassword.value, advice, false)) {
     console.log('new pwd invalid '+newPassword.value)
@@ -223,7 +194,7 @@ function changePassword() {
 function switchToAddrScreen() {
 
   populateTableMainWithAdder('')
-  document.getElementById('sub-table-results').innerHTML = ''
+  document.getElementById('table-submain-results').innerHTML = ''
   populateTableSettings(false)
 }
 
@@ -234,7 +205,7 @@ function showChangePwdResults(results) {
     tableBody += '<tr>'+results[i]+'</tr>'
   }
 
-  document.getElementById('table-settings').innerHTML = tableBody
+  document.getElementById('table-settings-results').innerHTML = tableBody
 }
 
 // Populates the main command table
@@ -244,9 +215,9 @@ function populateTableMainWithAdder(fileName) {
 
   // Generate the table body
   var tableBody = '<tr>'
-  tableBody += '<td><input type="button"  class="two columns" value="Open"' + btnColor + 'onclick="handleOpen()">'
+  tableBody += '<td><input type="button" class="two columns" value="Open"' + btnColor + 'onclick="handleOpen()">'
   tableBody += '<input type="text" class="seven columns" value="'+fileName+'" placeholder="Click Open to select file" id="workbook">'
-  tableBody += '<input type="button"  class="three columns" value="Add VAN IDs"' + btnColor + 'onclick="handleAugment()"></td>'
+  tableBody += '<input type="button" class="three columns" value="Add VAN IDs"' + btnColor + 'onclick="handleAugment()"></td>'
   tableBody += '</tr>'
 
   // Fill the table content
@@ -299,14 +270,14 @@ function populateTableResults(status) {
   }
 
   // Fill the table content
-  document.getElementById('main-table-results').innerHTML = tableBody
+  document.getElementById('table-main-results').innerHTML = tableBody
 }
 
 // clears the results table
 function clearTableResults() {
 
     // clear the table content
-    document.getElementById('main-table-results').innerHTML = ''
+    document.getElementById('table-main-results').innerHTML = ''
 }
 
 // Populates the settings table
@@ -348,6 +319,7 @@ function populateTableSettings(all) {
 
   // Fill the table content
   document.getElementById('table-settings').innerHTML = tableBody
+  document.getElementById('table-settings-results').innerHTML = ''
 }
 
 // saves values then clears the settings table
@@ -384,17 +356,33 @@ function saveTableSettings() {
 function createTableSettingsButton() {
 
   let tableBody = '<tr><td>'
-  tableBody += '<input type="button" value="Exit" class="two columns"' + btnColor + 'onclick="exitApp()">'
-  tableBody += '</td></tr><tr><td>'
-  tableBody += '<input type="button" value="Settings"' + btnColor + 'onclick="populateTableSettings(true)">'
+  tableBody += '<input type="button" class="three columns" value="Change Password"' + btnColor + 'onclick="populateTableChangePwd()">'
+  tableBody += '<input type="button" class="two columns" value="Settings"' + btnColor + 'onclick="populateTableSettings(true)">'
   tableBody += '</td></tr>'
 
   return tableBody
 }
 
-function exitApp() {
-  thisWindow.close()
-  thisWindow = null;
+function populateTableChangePwd() {
+
+  let tableBody = createTableSettingsButton()
+  tableBody += '<tr><p> </p></tr>'
+  tableBody += '<tr>'
+  tableBody += '<input type="password" class="four columns" placeholder="Enter new password" id="npwd">'
+  tableBody += '<input type="password" class="four columns" placeholder="Confirm new password" id="cpwd">'
+  tableBody += '</tr>'
+
+  tableBody += '<tr>'
+  tableBody += '<td><input type="button" value="Cancel"' + btnColor + 'onclick="populateTableSettings(false)"> '
+  tableBody += '<input type="button" value="Save"' + btnColor + 'onclick="changePassword()"></td>'
+  tableBody += '</tr>'
+
+  // Fill the table content
+  document.getElementById('table-settings').innerHTML = tableBody
+
+  // put cursor in text input
+  var input = document.getElementById('npwd')
+  input.focus()
 }
 
 function augmentWorkbook(workbookName) {
@@ -504,7 +492,7 @@ function showMissingPersons() {
   }
 
   // Fill the table content
-  document.getElementById('sub-table-results').innerHTML = tableBody
+  document.getElementById('table-submain-results').innerHTML = tableBody
 }
 
 function hideMissingPersons() {
@@ -513,7 +501,7 @@ function hideMissingPersons() {
 
   augmentResults.push('<td><input type="button" value="Show Missing Persons"' + btnColor + 'onclick="showMissingPersons()"></td>')
   populateTableResults(augmentResults)
-  document.getElementById('sub-table-results').innerHTML = ''
+  document.getElementById('table-submain-results').innerHTML = ''
 }
 
 function findHeaderInfo(keys, pattern) {
