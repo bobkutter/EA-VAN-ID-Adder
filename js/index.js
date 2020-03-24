@@ -73,7 +73,6 @@ function validatePassword(passText, advice, decrypt=true) {
     }
   }
 
-  console.log('validate returning true')
   return true
 }
 
@@ -456,7 +455,7 @@ function augmentWorkbook(workbookName) {
 
   missingPersons = []
   for (i = 0; i < jSheet.length; i++) {
-    insertVANID(jSheet[i], i, emailKey, firstNameKey, lastNameKey, writeNewWorkbook, closure)
+    lookupAndInsertVANID(jSheet[i], i, emailKey, firstNameKey, lastNameKey, writeNewWorkbook, closure)
   }
 }
 
@@ -531,24 +530,48 @@ function findHeaderInfo(keys, pattern) {
   }
 }
 
-function insertVANID(jRow, vanID, emailKey, firstNameKey, lastNameKey, fnc, closure) {
+function lookupAndInsertVANID(jRow, vanID, emailKey, firstNameKey, lastNameKey, fnc, closure) {
 
-  vanID = postRequest(jRow[emailKey], jRow[firstNameKey], jRow[lastNameKey], function(vid) {
+  var email = jRow[emailKey]
+  var first = jRow[firstNameKey]
+  var last = jRow[lastNameKey]
+
+  if (email.length == 0 || first.length == 0 || last.length == 0) {
+    console.log('skipped:'+first+' '+last+' '+email)
+    insertMissingVANID(email, first, last)
+    fnc(closure)
+    return
+  }
+
+  vanID = postRequest(email, first, last, function(vid) {
     jRow['VANID'] = vid
 
     if (vid == null) {
+      console.log('not found: '+email)
+      insertMissingVANID(email, first, last)
       let tableRow = '<tr>'
-      tableRow += '<td>'+jRow[firstNameKey]+'</td>'
-      tableRow += '<td>'+jRow[lastNameKey]+'</td>'
-      tableRow += '<td>'+jRow[emailKey]+'</td>'
+      tableRow += '<td>'+first+'</td>'
+      tableRow += '<td>'+last+'</td>'
+      tableRow += '<td>'+email+'</td>'
       tableRow += '</tr>'
       missingPersons.push(tableRow)
     } else {
+      console.log('found: '+email+' with VANID '+vid)
       closure.fnd++
     }
 
     fnc(closure)
   })
+}
+
+function insertMissingVANID(email, first, last) {
+
+  let tableRow = '<tr>'
+  tableRow += '<td>'+first+'</td>'
+  tableRow += '<td>'+last+'</td>'
+  tableRow += '<td>'+email+'</td>'
+  tableRow += '</tr>'
+  missingPersons.push(tableRow)
 }
 
 function postRequest(emailAddr, firstName, lastName, fnc) {
@@ -574,11 +597,16 @@ function postRequest(emailAddr, firstName, lastName, fnc) {
     }
   }
 
+  console.log('requesting: '+emailAddr)
   const req = https.request(options, res => {
     res.on('data', d => {
-      const jd = JSON.parse(d)
-      vanID = jd.vanId
-      fnc(vanID)
+      try {
+        const jd = JSON.parse(d)
+        vanID = jd.vanId
+        fnc(vanID)
+      } catch (e) {
+        console.log('bad json: '+firstName+' '+lastName+' '+emailAddr)
+      }
     })
   })
 
