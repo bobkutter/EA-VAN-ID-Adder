@@ -1,8 +1,11 @@
 // Initialize the database
 var Datastore = require('nedb')
-let db = new Datastore({ filename: 'db/settings.db', autoload: true })
 
-exports.update = function(key, value) {
+exports.open = function(fileName) {
+  return new Datastore({ filename: fileName, autoload: true })
+}
+
+exports.update = function(db, key, value) {
 
   db.remove({"key": key}, {}, function(err, numRemoved) {
     db.insert({"key": key, "value": value}, function(err, newDocs) {
@@ -10,7 +13,7 @@ exports.update = function(key, value) {
   })
 }
 
-exports.get = function(key, fnc) {
+exports.get = function(db, key, fnc) {
 
   // Look up key
   db.find({ "key": key}, function(err, docs) {

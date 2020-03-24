@@ -6,7 +6,8 @@ var request = ''
 
 let cryptr
 
-var thisWindow;
+var thisWindow
+var settingsDb
 
 // Set before password is available
 let encryptedApiKey = ''
@@ -79,24 +80,25 @@ function validatePassword(passText, advice, decrypt=true) {
 window.onload = function() {
 
   thisWindow = window
+  settingsDb = database.open('db/settings.db')
 
   // Fetch settings from previous uses
-  database.get(API_KEY, function(docs) {
+  database.get(settingsDb, API_KEY, function(docs) {
     if (docs[0].value.length > 0) {
       encryptedApiKey = docs[0].value
     }
   })
-  database.get(HOST_KEY, function(docs) {
+  database.get(settingsDb, HOST_KEY, function(docs) {
     if (docs[0].value.length > 0) {
       apiHost = docs[0].value
     }
   })
-  database.get(PATH_KEY, function(docs) {
+  database.get(settingsDb, PATH_KEY, function(docs) {
     if (docs[0].value.length > 0) {
       apiPath = docs[0].value
     }
   })
-  database.get(USER_KEY, function(docs) {
+  database.get(settingsDb, USER_KEY, function(docs) {
     if (docs[0].value.length > 0) {
       apiUser = docs[0].value
     }
@@ -210,7 +212,7 @@ function changePassword() {
   console.log('new pwd:'+newPassword.value+' apiKey:'+apiKey)
   cryptr = new Cryptr(newPassword.value)
   let encryptedString = cryptr.encrypt(apiKey)
-  database.update(API_KEY, encryptedString)
+  database.update(settingsDb, API_KEY, encryptedString)
   password = newPassword.value
 
   showChangePwdResults(['New password accepted.'])
@@ -356,22 +358,22 @@ function saveTableSettings() {
   var v = document.getElementById('api-key').value
   if (v != '') {
     encryptedString = cryptr.encrypt(v)
-    database.update(API_KEY, encryptedString)
+    database.update(settingsDb, API_KEY, encryptedString)
     apiKey = v
   }
   v = document.getElementById('api-host').value
   if (v != '') {
-    database.update(HOST_KEY, v)
+    database.update(settingsDb, HOST_KEY, v)
     apiHost = v
   }
   v = document.getElementById('api-path').value
   if (v != '') {
-    database.update(PATH_KEY, v)
+    database.update(settingsDb, PATH_KEY, v)
     apiPath = v
   }
   v = document.getElementById('api-user').value
   if (v != '') {
-    database.update(USER_KEY, v)
+    database.update(settingsDb, USER_KEY, v)
     apiUser = v
   }
 
