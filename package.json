@@ -1,6 +1,6 @@
 {
   "name": "EA-VAN-ID-Adder",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Add EveryAction VAN IDs to a workbook sheet",
   "main": "main.js",
   "scripts": {

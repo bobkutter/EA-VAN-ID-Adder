@@ -7,7 +7,11 @@ var request = ''
 let cryptr
 
 var thisWindow
+
 var settingsDb
+var orgsDb
+
+var organizations = {}
 
 // Set before password is available
 let encryptedApiKey = ''
@@ -20,7 +24,9 @@ let apiPath = ''
 let apiUser = ''
 
 const shtSuffix = ' with VANIDs'
-const btnColor = ' style="background-color:#33C3F0;color:#FFF" '
+
+const lightBlue = ' style="background-color:#33C3F0;color:#FFF" '
+const darkBlue = ' style="background-color:#3365f0;color:#FFF" '
 
 // Use numbers rather than names to make db content less obvious
 const API_KEY = '1'
@@ -31,6 +37,9 @@ const USER_KEY = '4'
 // Global variables because I couldn't figure out how to pass arg to showMissingPersons
 var augmentResults = []
 var missingPersons = []
+
+// Global variable because I couldn't figure out how to pass arg to updateOrgsFile
+var orgFileName = ''
 
 function validatePassword(passText, advice, decrypt=true) {
 
@@ -52,7 +61,6 @@ function validatePassword(passText, advice, decrypt=true) {
   }
 
   if (advice.length > 0) {
-    console.log('validate returning false 1')
     return false
   }
 
@@ -67,7 +75,6 @@ function validatePassword(passText, advice, decrypt=true) {
         apiKey = cryptr.decrypt(encryptedApiKey)
       } catch (e) {
         advice.push('Invalid password: Could not authenticate.')
-        console.log('validate returning false 2')
         return false
       }
     }
@@ -79,7 +86,9 @@ function validatePassword(passText, advice, decrypt=true) {
 window.onload = function() {
 
   thisWindow = window
+  console.log('opening dbs')
   settingsDb = database.open('db/settings.db')
+  orgsDb = database.open('db/orgs.db')
 
   // Fetch settings from previous uses
   database.get(settingsDb, API_KEY, function(docs) {
@@ -117,7 +126,7 @@ function populateTableMainWithPassword() {
 
   tableBody += '<tr>'
   tableBody += '<input type="password" class="four columns" placeholder="Enter password" id="password" pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}">'
-  tableBody += '<input type="button"  class="two columns" id="submit" value="Submit"' + btnColor + 'onclick="handleSubmittedPassword()">'
+  tableBody += '<input type="button"  class="two columns" id="submit" value="Submit"' + lightBlue + 'onclick="handleSubmittedPassword()">'
   tableBody += '</tr>'
 
   // Fill the table content
@@ -146,7 +155,8 @@ function handleSubmittedPassword() {
   password = document.getElementById('password')
   if (validatePassword(password.value, advice))
   {
-    switchToAddrScreen()
+    populateTableResults(['Loading data, please wait...'])
+    loadOrganizations(switchToAddrScreen)
   } else {
     populateTableResults(advice)
   }
@@ -162,7 +172,7 @@ function changePassword() {
   newPassword = document.getElementById('npwd')
   if (!validatePassword(newPassword.value, advice, false)) {
     console.log('new pwd invalid '+newPassword.value)
-    showChangePwdResults(advice)
+    showSettingsResults(advice)
     return
   }
 
@@ -170,22 +180,23 @@ function changePassword() {
 
   confirmedPwd = document.getElementById('cpwd')
   if (confirmedPwd.value == '') {
-    showChangePwdResults(['Please confirm new password.'])
+    showSettingsResults(['Please confirm new password.'])
     return
   }
   if (confirmedPwd.value != newPassword.value) {
-    showChangePwdResults(['New passwords do not match.'])
+    showSettingsResults(['New passwords do not match.'])
     return
   }
 
   // update encrypted API Key on disk, then keep new password in memory
-  console.log('new pwd:'+newPassword.value+' apiKey:'+apiKey)
   cryptr = new Cryptr(newPassword.value)
   let encryptedString = cryptr.encrypt(apiKey)
   database.update(settingsDb, API_KEY, encryptedString)
   password = newPassword.value
 
-  showChangePwdResults(['New password accepted.'])
+  reencryptOrganizations()
+
+  showSettingsResults(['New password accepted.'])
 
   // Give user a chance to see success message
   setTimeout(switchToAddrScreen, 1000);
@@ -198,7 +209,7 @@ function switchToAddrScreen() {
   populateTableSettings(false)
 }
 
-function showChangePwdResults(results) {
+function showSettingsResults(results) {
 
   let tableBody = ''
   for (let i = 0; i < results.length; i++) {
@@ -215,9 +226,9 @@ function populateTableMainWithAdder(fileName) {
 
   // Generate the table body
   var tableBody = '<tr>'
-  tableBody += '<td><input type="button" class="two columns" value="Open"' + btnColor + 'onclick="handleOpen()">'
+  tableBody += '<td><input type="button" class="two columns" value="Open"' + lightBlue + 'onclick="handleOpen()">'
   tableBody += '<input type="text" class="seven columns" value="'+fileName+'" placeholder="Click Open to select file" id="workbook">'
-  tableBody += '<input type="button" class="three columns" value="Add VAN IDs"' + btnColor + 'onclick="handleAugment()"></td>'
+  tableBody += '<input type="button" class="three columns" value="Add VAN IDs"' + lightBlue + 'onclick="handleAugment()"></td>'
   tableBody += '</tr>'
 
   // Fill the table content
@@ -288,9 +299,10 @@ function populateTableSettings(all) {
     pholder = 'Already set but hidden for security reasons'
   }
   // Generate the table body
-  let tableBody = createTableSettingsButton()
+  let tableBody = createTableSettingsButton('')
 
   if (all) {
+    tableBody = createTableSettingsButton('settings')
     tableBody += '<td><input type="text" class="three columns" value="API Key" readonly>'
     tableBody += '<input type="text" class="eight columns" id="api-key" placeholder="'+pholder+'"></td>'
     tableBody += '</tr>'
@@ -312,14 +324,14 @@ function populateTableSettings(all) {
 
     // Generate the table buttons
     tableBody += '<tr>'
-    tableBody += '<td><input type="button" value="Cancel"' + btnColor + 'onclick="populateTableSettings(false)"> '
-    tableBody += '<input type="button" value="Save"' + btnColor + 'onclick="saveTableSettings()"></td>'
+    tableBody += '<td><input type="button" class="two columns" value="Cancel"' + lightBlue + 'onclick="populateTableSettings(false)"> '
+    tableBody += '<input type="button" class="two columns" value="Save"' + lightBlue + 'onclick="saveTableSettings()"></td>'
     tableBody += '</tr>'
   }
 
   // Fill the table content
   document.getElementById('table-settings').innerHTML = tableBody
-  document.getElementById('table-settings-results').innerHTML = ''
+  showSettingsResults([])
 }
 
 // saves values then clears the settings table
@@ -349,15 +361,20 @@ function saveTableSettings() {
   }
 
   // Revert to closed settings section
-  let tableBody = createTableSettingsButton()
+  let tableBody = createTableSettingsButton('')
   document.getElementById('table-settings').innerHTML = tableBody
 }
 
-function createTableSettingsButton() {
+function createTableSettingsButton(selectedButton) {
+
+  let updateColor = (selectedButton == 'orgs' ? darkBlue : lightBlue)
+  let changePwdColor = (selectedButton == 'pwd' ? darkBlue : lightBlue)
+  let settingsColor = (selectedButton == 'settings' ? darkBlue : lightBlue)
 
   let tableBody = '<tr><td>'
-  tableBody += '<input type="button" class="three columns" value="Change Password"' + btnColor + 'onclick="populateTableChangePwd()">'
-  tableBody += '<input type="button" class="two columns" value="Settings"' + btnColor + 'onclick="populateTableSettings(true)">'
+  tableBody += '<input type="button" class="three columns" value="Update Orgs"' + updateColor + 'onclick="populateTableUpdateOrgs()">'
+  tableBody += '<input type="button" class="three columns" value="Change Password"' + changePwdColor + 'onclick="populateTableChangePwd()">'
+  tableBody += '<input type="button" class="three columns" value="Settings"' + settingsColor + 'onclick="populateTableSettings(true)">'
   tableBody += '</td></tr>'
 
   return tableBody
@@ -365,7 +382,7 @@ function createTableSettingsButton() {
 
 function populateTableChangePwd() {
 
-  let tableBody = createTableSettingsButton()
+  let tableBody = createTableSettingsButton('pwd')
   tableBody += '<tr><p> </p></tr>'
   tableBody += '<tr>'
   tableBody += '<input type="password" class="four columns" placeholder="Enter new password" id="npwd">'
@@ -373,21 +390,101 @@ function populateTableChangePwd() {
   tableBody += '</tr>'
 
   tableBody += '<tr>'
-  tableBody += '<td><input type="button" value="Cancel"' + btnColor + 'onclick="populateTableSettings(false)"> '
-  tableBody += '<input type="button" value="Save"' + btnColor + 'onclick="changePassword()"></td>'
+  tableBody += '<td><input type="button" class="two columns" value="Cancel"' + lightBlue + 'onclick="populateTableSettings(false)"> '
+  tableBody += '<input type="button" class="two columns" value="Save"' + lightBlue + 'onclick="changePassword()"></td>'
   tableBody += '</tr>'
 
   // Fill the table content
   document.getElementById('table-settings').innerHTML = tableBody
+  showSettingsResults([])
 
   // put cursor in text input
   var input = document.getElementById('npwd')
   input.focus()
 }
 
+function populateTableUpdateOrgs() {
+
+  let tableBody = createTableSettingsButton('orgs')
+  tableBody += '<tr><p> </p></tr>'
+  tableBody += '<tr><td>'
+  tableBody += '<input type="button" class="two columns" value="Open"' + lightBlue + 'onclick="handleOrgsOpen()">'
+  tableBody += '<input type="text" class="nine columns" readonly value="'+orgFileName+'"  placeholder="Click Open to select orgs file" id="orgfile">'
+  tableBody += '</td></tr>'
+
+  tableBody += '<tr><td>'
+  tableBody += '<input type="button" class="two columns" value="Cancel"' + lightBlue + 'onclick="populateTableSettings(false)"> '
+  tableBody += '<input type="button" class="two columns" value="Save"' + lightBlue + 'onclick="updateOrgsFile()">'
+  tableBody += '</td></tr>'
+
+  // Fill the table content
+  document.getElementById('table-settings').innerHTML = tableBody
+  showSettingsResults([Object.keys(organizations).length+' orgs currently stored.'])
+}
+
+function handleOrgsOpen() {
+
+  // Use system dialog to select file name
+  const { dialog } = require('electron').remote
+  promise = dialog.showOpenDialog()
+  promise.then(
+    result => handleOrgsOpenResult(result['filePaths'][0]),
+    error => alert(error)
+  )
+}
+
+function handleOrgsOpenResult(fileName) {
+
+  orgFileName = fileName
+  populateTableUpdateOrgs()
+}
+
+function updateOrgsFile() {
+
+  if (orgFileName.length == 0) {
+    showSettingsResults(['Click Open to select orgs file'])
+    return
+  }
+
+  // Open specified file
+  try {
+    var orgsWbk = xlsx.readFile(orgFileName)
+  } catch (e) {
+    populateTableResults([e.message])
+    return
+  }
+
+  // Assume first sheet is the one
+  const orgsSheetName = orgsWbk.SheetNames[0]
+  const orgsSheet = orgsWbk.Sheets[orgsSheetName]
+  const jOrgsSheet = xlsx.utils.sheet_to_json(orgsSheet,{defval:''})
+
+  try {
+    var keys = Object.keys(jOrgsSheet[0])
+  } catch (e) {
+    populateTableResults(['The format of "'+orgFileName+'" is invalid.','Please verify that it is a spreadsheet.'])
+    return
+  }
+
+  // find dictionary entries for VAN ID and email address
+  try {
+    emailKey = findHeaderInfo(keys, 'email', true)
+    vanIdKey = findHeaderInfo(keys, 'vanid')
+  } catch (e) {
+    showSettingsResults([e.message+' in ' + orgFileName,'The header row should be the first row in the sheet.'])
+    return
+  }
+
+  storeOrganizations(jOrgsSheet, emailKey, vanIdKey)
+  showSettingsResults([Object.keys(organizations).length+' organizations saved.'])
+
+  setTimeout(switchToAddrScreen, 1000);
+}
+
 function augmentWorkbook(workbookName) {
 
   populateTableResults(['Working...'])
+  document.getElementById('table-submain-results').innerHTML = ''
 
   // Open specified file
   try {
@@ -474,7 +571,7 @@ function writeNewWorkbook(closure) {
   augmentResults = ['Created new "'+sheetName+shtSuffix+'" sheet in '+workbookName+'.']
   augmentResults.push('Added VAN IDs to '+found+' out of '+total+' rows.')
   if (found != total) {
-    augmentResults.push('<td><input type="button" value="Show Missing Persons"' + btnColor + 'onclick="showMissingPersons()"></td>')
+    augmentResults.push('<td><input type="button" value="Show Missing Persons"' + lightBlue + 'onclick="showMissingPersons()"></td>')
   }
   populateTableResults(augmentResults)
 }
@@ -482,7 +579,7 @@ function writeNewWorkbook(closure) {
 function showMissingPersons() {
 
   augmentResults.pop()
-  augmentResults.push('<td><input type="button" value="Hide Missing Persons"' + btnColor + 'onclick="hideMissingPersons()"></td>')
+  augmentResults.push('<td><input type="button" value="Hide Missing Persons"' + lightBlue + 'onclick="hideMissingPersons()"></td>')
   populateTableResults(augmentResults)
 
   // Generate the table body
@@ -499,14 +596,17 @@ function hideMissingPersons() {
 
   augmentResults.pop()
 
-  augmentResults.push('<td><input type="button" value="Show Missing Persons"' + btnColor + 'onclick="showMissingPersons()"></td>')
+  augmentResults.push('<td><input type="button" value="Show Missing Persons"' + lightBlue + 'onclick="showMissingPersons()"></td>')
   populateTableResults(augmentResults)
   document.getElementById('table-submain-results').innerHTML = ''
 }
 
-function findHeaderInfo(keys, pattern) {
+function findHeaderInfo(keys, pattern, exact=false) {
 
   for (let i = 0; i < keys.length; i++) {
+    if (exact && keys[i].length != pattern.length) {
+      continue
+    }
     if (keys[i].toLowerCase().indexOf(pattern) != -1) {
       return keys[i]
     }
@@ -524,6 +624,17 @@ function lookupAndInsertVANID(jRow, vanID, emailKey, firstNameKey, lastNameKey, 
   var first = jRow[firstNameKey]
   var last = jRow[lastNameKey]
 
+  // An organization might not have first/last name, only email
+  if ((first.length == 0 || last.length == 0) && email in organizations) {
+    vid = organizations[email]
+    console.log('found org email locally: '+email+' with VANID '+vid)
+    jRow['VANID'] = vid
+    closure.fnd++
+    fnc(closure)
+    return
+  }
+
+  // Must have email, first and last name for EveryAction find operation
   if (email.length == 0 || first.length == 0 || last.length == 0) {
     console.log('skipped:'+first+' '+last+' '+email)
     insertMissingVANID(email, first, last)
@@ -532,22 +643,22 @@ function lookupAndInsertVANID(jRow, vanID, emailKey, firstNameKey, lastNameKey, 
   }
 
   vanID = postRequest(email, first, last, function(vid) {
-    jRow['VANID'] = vid
 
     if (vid == null) {
-      console.log('not found: '+email)
-      insertMissingVANID(email, first, last)
-      let tableRow = '<tr>'
-      tableRow += '<td>'+first+'</td>'
-      tableRow += '<td>'+last+'</td>'
-      tableRow += '<td>'+email+'</td>'
-      tableRow += '</tr>'
-      missingPersons.push(tableRow)
+      if (email in organizations) {
+        vid = organizations[email]
+        console.log('found org locally: '+email+' with VANID '+vid)
+        closure.fnd++
+      } else {
+        console.log('not found: '+email)
+        insertMissingVANID(email, first, last)
+      }
     } else {
       console.log('found: '+email+' with VANID '+vid)
       closure.fnd++
     }
 
+    jRow['VANID'] = vid
     fnc(closure)
   })
 }
@@ -604,4 +715,82 @@ function postRequest(emailAddr, firstName, lastName, fnc) {
 
   req.write(data)
   req.end()
+}
+
+function storeOneOrg(k, e, v) {
+
+  let val = {}
+  val['email'] = e
+  val['vanid'] = v
+  x = cryptr.encrypt(JSON.stringify(val))
+  database.update(orgsDb, k, x)
+}
+
+function reencryptOrganizations() {
+
+  let i = 0
+  for (var key in organizations) {
+    storeOneOrg(i+1, key, organizations[key])
+    i++
+  }
+  console.log('reencrypted orgs: '+Object.keys(organizations).length)
+}
+
+function storeOrganizations(orgs, emailKey, vanIdKey) {
+
+  // Reset in-memory organizations hash
+  organizations = {}
+
+  // Read orgs file, load in-memory hash and store in db
+  database.update(orgsDb, 0, orgs.length)
+  for (i = 0; i < orgs.length; i++) {
+    let e = orgs[i][emailKey]
+    let v = orgs[i][vanIdKey]
+
+    organizations[e] = v
+
+    storeOneOrg(i+1, e, v)
+  }
+  console.log('stored orgs: '+Object.keys(organizations).length)
+}
+
+function loadOrganizations(fnc) {
+
+  let orgCount = 0
+  organizations = {}
+
+  database.get(orgsDb, 0, function(docs) {
+    if (docs[0].value > 0) {
+      orgCount = docs[0].value
+    }
+
+    if (orgCount == 0) {
+      fnc()
+    }
+
+    for (i = 0; i < orgCount; i++) {
+      database.get(orgsDb, i+1, function(docs) {
+        if (docs[0].value.length > 0) {
+          let encryptedOrg = docs[0].value
+          try {
+            let decryptedOrg = cryptr.decrypt(encryptedOrg)
+            org = JSON.parse(decryptedOrg)
+          } catch (e) {
+            alert(e.message)
+            thisWindow = ''
+          }
+          let e = org['email']
+          let v = org['vanid']
+          organizations[e] = v
+
+          let loaded = Object.keys(organizations).length
+          console.log(loaded+' loaded org: '+e+' with '+organizations[e])
+
+          if (loaded == orgCount) {
+            fnc()
+          }
+        }
+      })
+    }
+  })
 }
