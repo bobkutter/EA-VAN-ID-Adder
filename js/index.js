@@ -1,32 +1,31 @@
-const database = require('./js/database')
-const xlsx = require('xlsx')
-const Cryptr = require('cryptr')
-var https = require('https')
-var request = ''
+const Database = require('./js/database')
+const Xlsx = require('xlsx')
+const Cryptography = require('cryptr')
+var Https = require('https')
 
-let cryptr
+let Cryptr
 
-var thisWindow
+var ThisWindow
 
-var settingsDb
-var orgsDb
+let SettingsDb
+let OrgsDb
 
-var organizations = {}
+let Organizations = {}
 
 // Set before password is available
-let encryptedApiKey = ''
+let EncryptedApiKey = ''
 
 // Set when correct password is entered
-let password = ''
-let apiKey = ''
-let apiHost = ''
-let apiPath = ''
-let apiUser = ''
+let Password = ''
+let ApiKey = ''
+let ApiHost = ''
+let ApiPath = ''
+let ApiUser = ''
 
-const shtSuffix = ' with VANIDs'
+const SheetSuffix = ' with VANIDs'
 
-const lightBlue = ' style="background-color:#33C3F0;color:#FFF" '
-const darkBlue = ' style="background-color:#3365f0;color:#FFF" '
+const LightBlue = ' style="background-color:#33C3F0;color:#FFF" '
+const DarkBlue = ' style="background-color:#3365f0;color:#FFF" '
 
 // Use numbers rather than names to make db content less obvious
 const API_KEY = '1'
@@ -35,28 +34,24 @@ const PATH_KEY = '3'
 const USER_KEY = '4'
 
 // Global variables because I couldn't figure out how to pass arg to showMissingPersons
-var augmentResults = []
-var missingPersons = []
+let AugmentResults = []
+let MissingPersons = []
 
 // Global variable because I couldn't figure out how to pass arg to updateOrgsFile
-var orgFileName = ''
+let OrgFileName = ''
 
 function validatePassword(passText, advice, decrypt=true) {
 
-  //advice = []
   if (passText.length < 8) {
     advice.push('Must be at least eight characters.')
   }
-  const lowerCaseLetters = /[a-z]/g
-  if(!passText.match(lowerCaseLetters)) {
+  if(!passText.match(/[a-z]/g)) {
     advice.push('Must have at least one lowercase letter.')
   }
-  const upperCaseLetters = /[A-Z]/g
-  if(!passText.match(upperCaseLetters)) {
+  if(!passText.match(/[A-Z]/g)) {
     advice.push('Must have at least one uppercase letter.')
   }
-  const numbers = /[0-9]/g
-  if(!passText.match(numbers)) {
+  if(!passText.match(/[0-9]/g)) {
     advice.push('Must have at least one number.')
   }
 
@@ -67,12 +62,12 @@ function validatePassword(passText, advice, decrypt=true) {
   if (decrypt)
   {
     // User entered valid string.
-    cryptr = new Cryptr(passText)
+    Cryptr = new Cryptography(passText)
 
     // If we have apiKey from previous uses, fetch it to test password decrypt
-    if (encryptedApiKey.length > 0) {
+    if (EncryptedApiKey.length > 0) {
       try {
-        apiKey = cryptr.decrypt(encryptedApiKey)
+        ApiKey = Cryptr.decrypt(EncryptedApiKey)
       } catch (e) {
         advice.push('Invalid password: Could not authenticate.')
         return false
@@ -85,30 +80,30 @@ function validatePassword(passText, advice, decrypt=true) {
 
 window.onload = function() {
 
-  thisWindow = window
+  ThisWindow = window
   console.log('opening dbs')
-  settingsDb = database.open('db/settings.db')
-  orgsDb = database.open('db/orgs.db')
+  SettingsDb = Database.open('db/settings.db')
+  OrgsDb = Database.open('db/orgs.db')
 
   // Fetch settings from previous uses
-  database.get(settingsDb, API_KEY, function(docs) {
+  Database.get(SettingsDb, API_KEY, function(docs) {
     if (docs[0].value.length > 0) {
-      encryptedApiKey = docs[0].value
+      EncryptedApiKey = docs[0].value
     }
   })
-  database.get(settingsDb, HOST_KEY, function(docs) {
+  Database.get(SettingsDb, HOST_KEY, function(docs) {
     if (docs[0].value.length > 0) {
-      apiHost = docs[0].value
+      ApiHost = docs[0].value
     }
   })
-  database.get(settingsDb, PATH_KEY, function(docs) {
+  Database.get(SettingsDb, PATH_KEY, function(docs) {
     if (docs[0].value.length > 0) {
-      apiPath = docs[0].value
+      ApiPath = docs[0].value
     }
   })
-  database.get(settingsDb, USER_KEY, function(docs) {
+  Database.get(SettingsDb, USER_KEY, function(docs) {
     if (docs[0].value.length > 0) {
-      apiUser = docs[0].value
+      ApiUser = docs[0].value
     }
   })
 
@@ -119,21 +114,21 @@ window.onload = function() {
 function populateTableMainWithPassword() {
 
   // Generate the table body
-  var tableBody = ''
+  let tableBody = ''
   tableBody += '<tr>'
   tableBody += '<p>Must contain at least one number and one uppercase and lowercase letter, and at least 8 or more characters.</p>'
   tableBody += '</tr>'
 
   tableBody += '<tr>'
   tableBody += '<input type="password" class="four columns" placeholder="Enter password" id="password" pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}">'
-  tableBody += '<input type="button"  class="two columns" id="submit" value="Submit"' + lightBlue + 'onclick="handleSubmittedPassword()">'
+  tableBody += '<input type="button"  class="two columns" id="submit" value="Submit"' + LightBlue + 'onclick="handleSubmittedPassword()">'
   tableBody += '</tr>'
 
   // Fill the table content
   document.getElementById('table-main').innerHTML = tableBody
 
   // put cursor in text input
-  var input = document.getElementById('password')
+  let input = document.getElementById('password')
   input.focus()
 
   // treat enter key like submit button
@@ -152,8 +147,8 @@ function handleSubmittedPassword() {
 
   let advice = []
 
-  password = document.getElementById('password').value
-  if (validatePassword(password, advice))
+  Password = document.getElementById('password').value
+  if (validatePassword(Password, advice))
   {
     populateTableResults(['Loading data, please wait...'])
     loadOrganizations(switchToAddrScreen)
@@ -170,18 +165,16 @@ function changePassword() {
   populateTableResults([])
 
   currentPwd = document.getElementById('pwd').value
-  if (currentPwd != password) {
+  if (currentPwd != Password) {
     showSettingsResults(['Invalid password: could not authenticate current password.'])
     return
   }
 
-  newPassword = document.getElementById('npwd')
+  let newPassword = document.getElementById('npwd')
   if (!validatePassword(newPassword.value, advice, false)) {
     showSettingsResults(advice)
     return
   }
-
-  advice = []
 
   confirmedPwd = document.getElementById('cpwd')
   if (confirmedPwd.value == '') {
@@ -194,10 +187,10 @@ function changePassword() {
   }
 
   // update encrypted API Key on disk, then keep new password in memory
-  cryptr = new Cryptr(newPassword.value)
-  let encryptedString = cryptr.encrypt(apiKey)
-  database.update(settingsDb, API_KEY, encryptedString)
-  password = newPassword.value
+  Cryptr = new Cryptography(newPassword.value)
+  let encryptedString = Cryptr.encrypt(ApiKey)
+  Database.update(SettingsDb, API_KEY, encryptedString)
+  Password = newPassword.value
 
   storeOrganizations()
 
@@ -230,10 +223,10 @@ function populateTableMainWithAdder(fileName) {
   clearTableResults()
 
   // Generate the table body
-  var tableBody = '<tr>'
-  tableBody += '<td><input type="button" class="two columns" value="Open"' + lightBlue + 'onclick="handleOpen()">'
+  let tableBody = '<tr>'
+  tableBody += '<td><input type="button" class="two columns" value="Open"' + LightBlue + 'onclick="handleOpen()">'
   tableBody += '<input type="text" class="seven columns" value="'+fileName+'" placeholder="Click Open to select file" id="workbook">'
-  tableBody += '<input type="button" class="three columns" value="Add VAN IDs"' + lightBlue + 'onclick="handleAugment()"></td>'
+  tableBody += '<input type="button" class="three columns" value="Add VAN IDs"' + LightBlue + 'onclick="handleAugment()"></td>'
   tableBody += '</tr>'
 
   // Fill the table content
@@ -268,7 +261,7 @@ function handleOpenResult(fileName) {
 
 function handleAugment() {
 
-  var workbook = document.getElementById('workbook')
+  let workbook = document.getElementById('workbook')
   if (workbook.value != '') {
     augmentWorkbook(workbook.value)
   } else {
@@ -280,7 +273,7 @@ function handleAugment() {
 function populateTableResults(status) {
 
   // Generate the table body
-  var tableBody = ''
+  let tableBody = ''
   for (let i = 0; i < status.length; i++) {
     tableBody += '<tr>' + status[i] + '</tr>'
   }
@@ -299,8 +292,8 @@ function clearTableResults() {
 // Populates the settings table
 function populateTableSettings(all) {
 
-  var pholder = ''
-  if (apiKey != '') {
+  let pholder = ''
+  if (ApiKey != '') {
     pholder = 'Already set but hidden for security reasons'
   }
   // Generate the table body
@@ -314,23 +307,23 @@ function populateTableSettings(all) {
 
     tableBody += '<tr>'
     tableBody += '<td><input type="text" class="three columns" value="API Host" readonly>'
-    tableBody += '<input type="text" class="eight columns" id="api-host" placeholder="'+apiHost+'"></td>'
+    tableBody += '<input type="text" class="eight columns" id="api-host" placeholder="'+ApiHost+'"></td>'
     tableBody += '</tr>'
 
     tableBody += '<tr>'
     tableBody += '<td><input type="text" class="three columns" value="API Path" readonly>'
-    tableBody += '<input type="text" class="eight columns" id="api-path" placeholder="'+apiPath+'"></td>'
+    tableBody += '<input type="text" class="eight columns" id="api-path" placeholder="'+ApiPath+'"></td>'
     tableBody += '</tr>'
 
     tableBody += '<tr>'
     tableBody += '<td><input type="text" class="three columns" value="API User" readonly>'
-    tableBody += '<input type="text" class="eight columns" id="api-user" placeholder="'+apiUser+'"></td>'
+    tableBody += '<input type="text" class="eight columns" id="api-user" placeholder="'+ApiUser+'"></td>'
     tableBody += '</tr>'
 
     // Generate the table buttons
     tableBody += '<tr>'
-    tableBody += '<td><input type="button" class="two columns" value="Cancel"' + lightBlue + 'onclick="populateTableSettings(false)"> '
-    tableBody += '<input type="button" class="two columns" value="Save"' + lightBlue + 'onclick="saveTableSettings()"></td>'
+    tableBody += '<td><input type="button" class="two columns" value="Cancel"' + LightBlue + 'onclick="populateTableSettings(false)"> '
+    tableBody += '<input type="button" class="two columns" value="Save"' + LightBlue + 'onclick="saveTableSettings()"></td>'
     tableBody += '</tr>'
   }
 
@@ -343,26 +336,26 @@ function populateTableSettings(all) {
 function saveTableSettings() {
 
   // Save values from the table into the db
-  var v = document.getElementById('api-key').value
+  let v = document.getElementById('api-key').value
   if (v != '') {
-    encryptedString = cryptr.encrypt(v)
-    database.update(settingsDb, API_KEY, encryptedString)
-    apiKey = v
+    encryptedString = Cryptr.encrypt(v)
+    Database.update(SettingsDb, API_KEY, encryptedString)
+    ApiKey = v
   }
   v = document.getElementById('api-host').value
   if (v != '') {
-    database.update(settingsDb, HOST_KEY, v)
-    apiHost = v
+    Database.update(SettingsDb, HOST_KEY, v)
+    ApiHost = v
   }
   v = document.getElementById('api-path').value
   if (v != '') {
-    database.update(settingsDb, PATH_KEY, v)
-    apiPath = v
+    Database.update(SettingsDb, PATH_KEY, v)
+    ApiPath = v
   }
   v = document.getElementById('api-user').value
   if (v != '') {
-    database.update(settingsDb, USER_KEY, v)
-    apiUser = v
+    Database.update(SettingsDb, USER_KEY, v)
+    ApiUser = v
   }
 
   // Revert to closed settings section
@@ -372,9 +365,9 @@ function saveTableSettings() {
 
 function createTableSettingsButton(selectedButton) {
 
-  let updateColor = (selectedButton == 'orgs' ? darkBlue : lightBlue)
-  let changePwdColor = (selectedButton == 'pwd' ? darkBlue : lightBlue)
-  let settingsColor = (selectedButton == 'settings' ? darkBlue : lightBlue)
+  let updateColor = (selectedButton == 'orgs' ? DarkBlue : LightBlue)
+  let changePwdColor = (selectedButton == 'pwd' ? DarkBlue : LightBlue)
+  let settingsColor = (selectedButton == 'settings' ? DarkBlue : LightBlue)
 
   let tableBody = '<tr><td>'
   tableBody += '<input type="button" class="three columns" value="Update Orgs"' + updateColor + 'onclick="populateTableUpdateOrgs()">'
@@ -398,8 +391,8 @@ function populateTableChangePwd() {
   tableBody += '</tr>'
 
   tableBody += '<tr>'
-  tableBody += '<td><input type="button" class="two columns" value="Cancel"' + lightBlue + 'onclick="populateTableSettings(false)"> '
-  tableBody += '<input type="button" class="two columns" value="Change"' + lightBlue + 'onclick="changePassword()"></td>'
+  tableBody += '<td><input type="button" class="two columns" value="Cancel"' + LightBlue + 'onclick="populateTableSettings(false)"> '
+  tableBody += '<input type="button" class="two columns" value="Change"' + LightBlue + 'onclick="changePassword()"></td>'
   tableBody += '</tr>'
 
   // Fill the table content
@@ -407,7 +400,7 @@ function populateTableChangePwd() {
   showSettingsResults([])
 
   // put cursor in text input
-  var input = document.getElementById('pwd')
+  let input = document.getElementById('pwd')
   input.focus()
 }
 
@@ -416,19 +409,19 @@ function populateTableUpdateOrgs() {
   let tableBody = createTableSettingsButton('orgs')
   tableBody += '<tr><p> </p></tr>'
   tableBody += '<tr><td>'
-  tableBody += '<input type="button" class="two columns" value="Open"' + lightBlue + 'onclick="handleOrgsOpen()">'
-  tableBody += '<input type="text" class="nine columns" readonly value="'+orgFileName+'"  placeholder="Click Open to select orgs file" id="orgfile">'
+  tableBody += '<input type="button" class="two columns" value="Open"' + LightBlue + 'onclick="handleOrgsOpen()">'
+  tableBody += '<input type="text" class="nine columns" readonly value="'+OrgFileName+'"  placeholder="Click Open to select orgs file" id="orgfile">'
   tableBody += '</td></tr>'
 
   tableBody += '<tr><td>'
-  tableBody += '<input type="button" class="two columns" value="Cancel"' + lightBlue + 'onclick="populateTableSettings(false)"> '
-  tableBody += '<input type="button" class="two columns" value="Update"' + lightBlue + 'onclick="processOrgsFile()">'
-  tableBody += '<input type="button" class="two columns" value="Erase"' + lightBlue + 'onclick="eraseOrgsFile()">'
+  tableBody += '<input type="button" class="two columns" value="Cancel"' + LightBlue + 'onclick="populateTableSettings(false)"> '
+  tableBody += '<input type="button" class="two columns" value="Update"' + LightBlue + 'onclick="processOrgsFile()">'
+  tableBody += '<input type="button" class="two columns" value="Erase"' + LightBlue + 'onclick="eraseOrgsFile()">'
   tableBody += '</td></tr>'
 
   // Fill the table content
   document.getElementById('table-settings').innerHTML = tableBody
-  showSettingsResults([Object.keys(organizations).length+' orgs currently stored.'])
+  showSettingsResults([Object.keys(Organizations).length+' orgs currently stored.'])
 }
 
 function handleOrgsOpen() {
@@ -444,20 +437,20 @@ function handleOrgsOpen() {
 
 function handleOrgsOpenResult(fileName) {
 
-  orgFileName = fileName
+  OrgFileName = fileName
   populateTableUpdateOrgs()
 }
 
 function processOrgsFile() {
 
-  if (orgFileName.length == 0) {
+  if (OrgFileName.length == 0) {
     showSettingsResults(['Click Open to select orgs file'])
     return
   }
 
   // Open specified file
   try {
-    var orgsWbk = xlsx.readFile(orgFileName)
+    var orgsWbk = Xlsx.readFile(OrgFileName)
   } catch (e) {
     populateTableResults([e.message])
     return
@@ -466,34 +459,34 @@ function processOrgsFile() {
   // Assume first sheet is the one
   const orgsSheetName = orgsWbk.SheetNames[0]
   const orgsSheet = orgsWbk.Sheets[orgsSheetName]
-  const jOrgsSheet = xlsx.utils.sheet_to_json(orgsSheet,{defval:''})
+  const jOrgsSheet = Xlsx.utils.sheet_to_json(orgsSheet,{defval:''})
 
   try {
     var keys = Object.keys(jOrgsSheet[0])
   } catch (e) {
-    populateTableResults(['The format of "'+orgFileName+'" is invalid.','Please verify that it is a spreadsheet.'])
+    populateTableResults(['The format of "'+OrgFileName+'" is invalid.','Please verify that it is a spreadsheet.'])
     return
   }
 
   // find dictionary entries for VAN ID and email address
   try {
-    emailKey = findHeaderInfo(keys, 'email', true)
-    vanIdKey = findHeaderInfo(keys, 'vanid')
+    var emailKey = findHeaderInfo(keys, 'email', true)
+    var vanIdKey = findHeaderInfo(keys, 'vanid')
   } catch (e) {
-    showSettingsResults([e.message+' in ' + orgFileName,'The header row should be the first row in the sheet.'])
+    showSettingsResults([e.message+' in ' + OrgFileName,'The header row should be the first row in the sheet.'])
     return
   }
 
   updateAndStoreOrganizations(jOrgsSheet, emailKey, vanIdKey)
-  showSettingsResults([Object.keys(organizations).length+' organizations saved.'])
+  showSettingsResults([Object.keys(Organizations).length+' organizations saved.'])
 
   setTimeout(switchToAddrScreen, 1000);
 }
 
 function eraseOrgsFile() {
 
-  organizations = {}
-  database.drop(orgsDb)
+  Organizations = {}
+  Database.drop(OrgsDb)
 
   showSettingsResults(['All organizations erased.'])
 
@@ -507,7 +500,7 @@ function augmentWorkbook(workbookName) {
 
   // Open specified file
   try {
-    var workbook = xlsx.readFile(workbookName)
+    var workbook = Xlsx.readFile(workbookName)
   } catch (e) {
     populateTableResults([e.message])
     return
@@ -516,20 +509,19 @@ function augmentWorkbook(workbookName) {
   // Assume first sheet is the one
   const sheetName = workbook.SheetNames[0]
   const xSheet = workbook.Sheets[sheetName]
-  const jSheet = xlsx.utils.sheet_to_json(xSheet,{defval:''})
+  const jSheet = Xlsx.utils.sheet_to_json(xSheet,{defval:''})
 
   // Check if augmented sheet already exists
   for (let i = 0; i < workbook.SheetNames.length; i++) {
-    if (workbook.SheetNames[i] == sheetName+shtSuffix) {
-      populateTableResults(['Sheet "'+sheetName+shtSuffix+'" already exists in the "'+workbookName+'" workbook. Please remove this sheet.'])
+    if (workbook.SheetNames[i] == sheetName+SheetSuffix) {
+      populateTableResults(['Sheet "'+sheetName+SheetSuffix+'" already exists in the "'+workbookName+'" workbook. Please remove this sheet.'])
       return
     }
   }
 
   // Save original column order with VAN ID added in first column
-  var keys
   try {
-    keys = Object.keys(jSheet[0])
+    var keys = Object.keys(jSheet[0])
   } catch (e) {
     populateTableResults(['The format of "'+workbookName+'" is invalid.','Please verify that it is a spreadsheet.'])
     return
@@ -538,15 +530,15 @@ function augmentWorkbook(workbookName) {
 
   // find dictionary entries for email address, first and last Names
   try {
-    emailKey = findHeaderInfo(keys, 'email')
-    firstNameKey = findHeaderInfo(keys, 'first name')
-    lastNameKey = findHeaderInfo(keys, 'last name')
+    var emailKey = findHeaderInfo(keys, 'email')
+    var firstNameKey = findHeaderInfo(keys, 'first name')
+    var lastNameKey = findHeaderInfo(keys, 'last name')
   } catch (e) {
     populateTableResults([e.message+' in ' + workbookName,'The header row should be the first row in the sheet.'])
     return
   }
 
-  var closure = {
+  let closure = {
     'wb': workbook,
     'wbn': workbookName,
     'shn': sheetName,
@@ -557,54 +549,54 @@ function augmentWorkbook(workbookName) {
     'fnd': 0
   }
 
-  missingPersons = []
-  for (i = 0; i < jSheet.length; i++) {
+  MissingPersons = []
+  for (let i = 0; i < jSheet.length; i++) {
     lookupAndInsertVANID(jSheet[i], i, emailKey, firstNameKey, lastNameKey, writeNewWorkbook, closure)
   }
 }
 
 function writeNewWorkbook(closure) {
 
-  total = closure.tot
+  let total = closure.tot
 
   if (++closure.cnt < total) {
     return
   }
 
-  workbook = closure.wb
-  workbookName = closure.wbn
-  sheetName = closure.shn
-  jSheet = closure.sht
-  keys = closure.k
-  found = closure.fnd
+  let workbook = closure.wb
+  let workbookName = closure.wbn
+  let sheetName = closure.shn
+  let jSheet = closure.sht
+  let keys = closure.k
+  let found = closure.fnd
 
-  const xNewSheet = xlsx.utils.json_to_sheet(jSheet,{header:keys})
+  const xNewSheet = Xlsx.utils.json_to_sheet(jSheet,{header:keys})
   try {
-    xlsx.utils.book_append_sheet(workbook, xNewSheet, sheetName+shtSuffix)
-    xlsx.writeFile(workbook, workbookName)
+    Xlsx.utils.book_append_sheet(workbook, xNewSheet, sheetName+SheetSuffix)
+    Xlsx.writeFile(workbook, workbookName)
   } catch (e) {
     populateTableResults([+e.message])
     return
   }
 
-  augmentResults = ['Created new "'+sheetName+shtSuffix+'" sheet in '+workbookName+'.']
-  augmentResults.push('Added VAN IDs to '+found+' out of '+total+' rows.')
+  AugmentResults = ['Created new "'+sheetName+SheetSuffix+'" sheet in '+workbookName+'.']
+  AugmentResults.push('Added VAN IDs to '+found+' out of '+total+' rows.')
   if (found != total) {
-    augmentResults.push('<td><input type="button" value="Show Missing Persons"' + lightBlue + 'onclick="showMissingPersons()"></td>')
+    AugmentResults.push('<td><input type="button" value="Show Missing Persons"' + LightBlue + 'onclick="showMissingPersons()"></td>')
   }
-  populateTableResults(augmentResults)
+  populateTableResults(AugmentResults)
 }
 
 function showMissingPersons() {
 
-  augmentResults.pop()
-  augmentResults.push('<td><input type="button" value="Hide Missing Persons"' + lightBlue + 'onclick="hideMissingPersons()"></td>')
-  populateTableResults(augmentResults)
+  AugmentResults.pop()
+  AugmentResults.push('<td><input type="button" value="Hide Missing Persons"' + LightBlue + 'onclick="hideMissingPersons()"></td>')
+  populateTableResults(AugmentResults)
 
   // Generate the table body
-  var tableBody = ''
-  for (let i = 0; i < missingPersons.length; i++) {
-    tableBody += missingPersons[i]
+  let tableBody = ''
+  for (let i = 0; i < MissingPersons.length; i++) {
+    tableBody += MissingPersons[i]
   }
 
   // Fill the table content
@@ -613,10 +605,10 @@ function showMissingPersons() {
 
 function hideMissingPersons() {
 
-  augmentResults.pop()
+  AugmentResults.pop()
 
-  augmentResults.push('<td><input type="button" value="Show Missing Persons"' + lightBlue + 'onclick="showMissingPersons()"></td>')
-  populateTableResults(augmentResults)
+  AugmentResults.push('<td><input type="button" value="Show Missing Persons"' + LightBlue + 'onclick="showMissingPersons()"></td>')
+  populateTableResults(AugmentResults)
   document.getElementById('table-submain-results').innerHTML = ''
 }
 
@@ -639,13 +631,13 @@ function findHeaderInfo(keys, pattern, exact=false) {
 
 function lookupAndInsertVANID(jRow, vanID, emailKey, firstNameKey, lastNameKey, fnc, closure) {
 
-  var email = jRow[emailKey]
-  var first = jRow[firstNameKey]
-  var last = jRow[lastNameKey]
+  let email = jRow[emailKey]
+  let first = jRow[firstNameKey]
+  let last = jRow[lastNameKey]
 
   // An organization might not have first/last name, only email
-  if ((first.length == 0 || last.length == 0) && email in organizations) {
-    vid = organizations[email]
+  if ((first.length == 0 || last.length == 0) && email in Organizations) {
+    let vid = Organizations[email]
     console.log('found org email locally: '+email+' with VANID '+vid)
     jRow['VANID'] = vid
     closure.fnd++
@@ -664,8 +656,8 @@ function lookupAndInsertVANID(jRow, vanID, emailKey, firstNameKey, lastNameKey, 
   vanID = postRequest(email, first, last, function(vid) {
 
     if (vid == null) {
-      if (email in organizations) {
-        vid = organizations[email]
+      if (email in Organizations) {
+        vid = Organizations[email]
         console.log('found org locally: '+email+' with VANID '+vid)
         closure.fnd++
       } else {
@@ -689,13 +681,13 @@ function insertMissingVANID(email, first, last) {
   tableRow += '<td>'+last+'</td>'
   tableRow += '<td>'+email+'</td>'
   tableRow += '</tr>'
-  missingPersons.push(tableRow)
+  MissingPersons.push(tableRow)
 }
 
 function postRequest(emailAddr, firstName, lastName, fnc) {
 
-  var vanID = ''
-  const username = apiUser + ':' + apiKey + '|1';
+  let vanID = ''
+  const username = ApiUser + ':' + ApiKey + '|1';
 
   const data = JSON.stringify({
     'firstName': firstName,
@@ -716,7 +708,7 @@ function postRequest(emailAddr, firstName, lastName, fnc) {
   }
 
   console.log('requesting: '+emailAddr)
-  const req = https.request(options, res => {
+  const req = Https.request(options, res => {
     res.on('data', d => {
       try {
         const jd = JSON.parse(d)
@@ -741,29 +733,29 @@ function storeOneOrg(k, e, v) {
   let val = {}
   val['email'] = e
   val['vanid'] = v
-  x = cryptr.encrypt(JSON.stringify(val))
-  database.update(orgsDb, k, x)
+  let x = Cryptr.encrypt(JSON.stringify(val))
+  Database.update(OrgsDb, k, x)
 }
 
 function storeOrganizations() {
 
   let i = 0
-  database.update(orgsDb, 0, Object.keys(organizations).length)
-  for (var key in organizations) {
-    storeOneOrg(i+1, key, organizations[key])
+  Database.update(OrgsDb, 0, Object.keys(Organizations).length)
+  for (let key in Organizations) {
+    storeOneOrg(i+1, key, Organizations[key])
     i++
   }
-  console.log('reencrypted orgs: '+Object.keys(organizations).length)
+  console.log('reencrypted orgs: '+Object.keys(Organizations).length)
 }
 
 function updateAndStoreOrganizations(orgs, emailKey, vanIdKey) {
 
   // Read orgs file, update in-memory hash and store in db
-  for (i = 0; i < orgs.length; i++) {
+  for (let i = 0; i < orgs.length; i++) {
     let e = orgs[i][emailKey]
     let v = orgs[i][vanIdKey]
 
-    organizations[e] = v
+    Organizations[e] = v
   }
 
   storeOrganizations()
@@ -773,7 +765,7 @@ function loadOrganizations(fnc) {
 
   let orgCount = 0
 
-  database.get(orgsDb, 0, function(docs) {
+  Database.get(OrgsDb, 0, function(docs) {
     if (docs[0].value > 0) {
       orgCount = docs[0].value
     }
@@ -782,23 +774,23 @@ function loadOrganizations(fnc) {
       fnc()
     }
 
-    for (i = 0; i < orgCount; i++) {
-      database.get(orgsDb, i+1, function(docs) {
+    for (let i = 0; i < orgCount; i++) {
+      Database.get(OrgsDb, i+1, function(docs) {
         if (docs[0].value.length > 0) {
           let encryptedOrg = docs[0].value
           try {
-            let decryptedOrg = cryptr.decrypt(encryptedOrg)
+            let decryptedOrg = Cryptr.decrypt(encryptedOrg)
             org = JSON.parse(decryptedOrg)
           } catch (e) {
             alert(e.message)
-            thisWindow = ''
+            ThisWindow = ''
           }
           let e = org['email']
           let v = org['vanid']
-          organizations[e] = v
+          Organizations[e] = v
 
-          let loaded = Object.keys(organizations).length
-          console.log(loaded+' loaded org: '+e+' with '+organizations[e])
+          let loaded = Object.keys(Organizations).length
+          console.log(loaded+' loaded org: '+e+' with '+Organizations[e])
 
           if (loaded == orgCount) {
             fnc()
