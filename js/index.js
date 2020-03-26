@@ -152,8 +152,8 @@ function handleSubmittedPassword() {
 
   let advice = []
 
-  password = document.getElementById('password')
-  if (validatePassword(password.value, advice))
+  password = document.getElementById('password').value
+  if (validatePassword(password, advice))
   {
     populateTableResults(['Loading data, please wait...'])
     loadOrganizations(switchToAddrScreen)
@@ -169,9 +169,14 @@ function changePassword() {
   console.log('changing password')
   populateTableResults([])
 
+  currentPwd = document.getElementById('pwd').value
+  if (currentPwd != password) {
+    showSettingsResults(['Invalid password: could not authenticate current password.'])
+    return
+  }
+
   newPassword = document.getElementById('npwd')
   if (!validatePassword(newPassword.value, advice, false)) {
-    console.log('new pwd invalid '+newPassword.value)
     showSettingsResults(advice)
     return
   }
@@ -194,7 +199,7 @@ function changePassword() {
   database.update(settingsDb, API_KEY, encryptedString)
   password = newPassword.value
 
-  reencryptOrganizations()
+  storeOrganizations()
 
   showSettingsResults(['New password accepted.'])
 
@@ -385,13 +390,16 @@ function populateTableChangePwd() {
   let tableBody = createTableSettingsButton('pwd')
   tableBody += '<tr><p> </p></tr>'
   tableBody += '<tr>'
+  tableBody += '<input type="password" class="four columns" placeholder="Enter current password" id="pwd">'
+  tableBody += '</tr>'
+  tableBody += '<tr>'
   tableBody += '<input type="password" class="four columns" placeholder="Enter new password" id="npwd">'
   tableBody += '<input type="password" class="four columns" placeholder="Confirm new password" id="cpwd">'
   tableBody += '</tr>'
 
   tableBody += '<tr>'
   tableBody += '<td><input type="button" class="two columns" value="Cancel"' + lightBlue + 'onclick="populateTableSettings(false)"> '
-  tableBody += '<input type="button" class="two columns" value="Save"' + lightBlue + 'onclick="changePassword()"></td>'
+  tableBody += '<input type="button" class="two columns" value="Change"' + lightBlue + 'onclick="changePassword()"></td>'
   tableBody += '</tr>'
 
   // Fill the table content
@@ -399,7 +407,7 @@ function populateTableChangePwd() {
   showSettingsResults([])
 
   // put cursor in text input
-  var input = document.getElementById('npwd')
+  var input = document.getElementById('pwd')
   input.focus()
 }
 
@@ -414,7 +422,8 @@ function populateTableUpdateOrgs() {
 
   tableBody += '<tr><td>'
   tableBody += '<input type="button" class="two columns" value="Cancel"' + lightBlue + 'onclick="populateTableSettings(false)"> '
-  tableBody += '<input type="button" class="two columns" value="Save"' + lightBlue + 'onclick="updateOrgsFile()">'
+  tableBody += '<input type="button" class="two columns" value="Update"' + lightBlue + 'onclick="processOrgsFile()">'
+  tableBody += '<input type="button" class="two columns" value="Erase"' + lightBlue + 'onclick="eraseOrgsFile()">'
   tableBody += '</td></tr>'
 
   // Fill the table content
@@ -439,7 +448,7 @@ function handleOrgsOpenResult(fileName) {
   populateTableUpdateOrgs()
 }
 
-function updateOrgsFile() {
+function processOrgsFile() {
 
   if (orgFileName.length == 0) {
     showSettingsResults(['Click Open to select orgs file'])
@@ -475,8 +484,18 @@ function updateOrgsFile() {
     return
   }
 
-  storeOrganizations(jOrgsSheet, emailKey, vanIdKey)
+  updateAndStoreOrganizations(jOrgsSheet, emailKey, vanIdKey)
   showSettingsResults([Object.keys(organizations).length+' organizations saved.'])
+
+  setTimeout(switchToAddrScreen, 1000);
+}
+
+function eraseOrgsFile() {
+
+  organizations = {}
+  database.drop(orgsDb)
+
+  showSettingsResults(['All organizations erased.'])
 
   setTimeout(switchToAddrScreen, 1000);
 }
@@ -726,9 +745,10 @@ function storeOneOrg(k, e, v) {
   database.update(orgsDb, k, x)
 }
 
-function reencryptOrganizations() {
+function storeOrganizations() {
 
   let i = 0
+  database.update(orgsDb, 0, Object.keys(organizations).length)
   for (var key in organizations) {
     storeOneOrg(i+1, key, organizations[key])
     i++
@@ -736,28 +756,22 @@ function reencryptOrganizations() {
   console.log('reencrypted orgs: '+Object.keys(organizations).length)
 }
 
-function storeOrganizations(orgs, emailKey, vanIdKey) {
+function updateAndStoreOrganizations(orgs, emailKey, vanIdKey) {
 
-  // Reset in-memory organizations hash
-  organizations = {}
-
-  // Read orgs file, load in-memory hash and store in db
-  database.update(orgsDb, 0, orgs.length)
+  // Read orgs file, update in-memory hash and store in db
   for (i = 0; i < orgs.length; i++) {
     let e = orgs[i][emailKey]
     let v = orgs[i][vanIdKey]
 
     organizations[e] = v
-
-    storeOneOrg(i+1, e, v)
   }
-  console.log('stored orgs: '+Object.keys(organizations).length)
+
+  storeOrganizations()
 }
 
 function loadOrganizations(fnc) {
 
   let orgCount = 0
-  organizations = {}
 
   database.get(orgsDb, 0, function(docs) {
     if (docs[0].value > 0) {

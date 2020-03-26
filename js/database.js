@@ -25,3 +25,12 @@ exports.get = function(db, key, fnc) {
     }
   })
 }
+
+exports.drop = function(db) {
+
+  db.remove({ }, { multi: true }, function (err, numRemoved) {
+    db.loadDatabase(function (err) {
+      // done
+    })
+  })
+}
