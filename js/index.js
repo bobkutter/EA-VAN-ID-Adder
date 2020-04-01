@@ -253,6 +253,9 @@ function handleOpenResult(fileName) {
   // Show file name in the text box
   if (typeof(fileName) == 'undefined') {
     populateTableMainWithAdder('')
+  } else if (fileName.toLowerCase().indexOf('.csv') != -1) {
+    populateTableMainWithAdder('')
+    populateTableResults(['File type "csv" not supported.'])
   } else {
     populateTableMainWithAdder(fileName)
     populateTableResults(['Click "ADD VAN IDS" to add VAN IDs to workbook'])
