@@ -2,6 +2,7 @@ const Database = require('./js/database')
 const Xlsx = require('xlsx')
 const Cryptography = require('cryptr')
 var Https = require('https')
+var OS = require('os')
 
 let Cryptr
 
@@ -81,9 +82,11 @@ function validatePassword(passText, advice, decrypt=true) {
 window.onload = function() {
 
   ThisWindow = window
-  console.log('opening dbs')
-  SettingsDb = Database.open('db/settings.db')
-  OrgsDb = Database.open('db/orgs.db')
+
+  let dataDir = OS.homedir()+'/.ea-vanid/'
+  console.log('opening dbs in: '+dataDir)
+  SettingsDb = Database.open(dataDir+'settings.db')
+  OrgsDb = Database.open(dataDir+'orgs.db')
 
   // Fetch settings from previous uses
   Database.get(SettingsDb, API_KEY, function(docs) {
