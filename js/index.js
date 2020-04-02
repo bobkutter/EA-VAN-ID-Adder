@@ -597,7 +597,11 @@ function showMissingPersons() {
   populateTableResults(AugmentResults)
 
   // Generate the table body
-  let tableBody = ''
+  let tableBody = '<tr>'
+  tableBody += '<td>First Name</td>'
+  tableBody += '<td>Last Name</td>'
+  tableBody += '<td>Email Address</td>'
+  tableBody += '</tr>'
   for (let i = 0; i < MissingPersons.length; i++) {
     tableBody += MissingPersons[i]
   }
@@ -638,8 +642,8 @@ function lookupAndInsertVANID(jRow, vanID, emailKey, firstNameKey, lastNameKey, 
   let first = jRow[firstNameKey]
   let last = jRow[lastNameKey]
 
-  // An organization might not have first/last name, only email
-  if ((first.length == 0 || last.length == 0) && email in Organizations) {
+  // Look up email address for orgs first since it is local and fast
+  if (email in Organizations) {
     let vid = Organizations[email]
     console.log('found org email locally: '+email+' with VANID '+vid)
     jRow['VANID'] = vid
@@ -648,10 +652,10 @@ function lookupAndInsertVANID(jRow, vanID, emailKey, firstNameKey, lastNameKey, 
     return
   }
 
-  // Must have email, first and last name for EveryAction find operation
-  if (email.length == 0 || first.length == 0 || last.length == 0) {
-    console.log('skipped:'+first+' '+last+' '+email)
-    insertMissingVANID(email, first, last)
+  // Must have at least email address for EveryAction find operation
+  if (email.length == 0) {
+    console.log('no email:'+first+' '+last)
+    insertMissingVANID('', first, last)
     fnc(closure)
     return
   }
@@ -689,14 +693,37 @@ function insertMissingVANID(email, first, last) {
 
 function postRequest(emailAddr, firstName, lastName, fnc) {
 
-  let vanID = ''
-  const username = ApiUser + ':' + ApiKey + '|1';
+  let vanID = null
 
-  const data = JSON.stringify({
+  // start by searching with first, last name and email address
+  let firstTry = JSON.stringify({
     'firstName': firstName,
     'lastName': lastName,
     'emails': [ { 'email': emailAddr } ]
   })
+
+  console.log('requesting: '+emailAddr)
+  postSingleRequest(firstTry, vanID => {
+
+    // if first search failed, look by only email address
+    if (vanID == null) {
+      let secondTry = JSON.stringify({
+        'emails': [ { 'email': emailAddr } ]
+      })
+      console.log('re-requesting: '+emailAddr)
+      postSingleRequest(secondTry, vanID => {
+        fnc(vanID)
+      })
+    } else {
+      fnc(vanID)
+    }
+  })
+}
+
+function postSingleRequest(data, fnc) {
+
+  let vanID = null
+  const username = ApiUser + ':' + ApiKey + '|1';
 
   const options = {
     hostname: 'api.securevan.com',
@@ -710,7 +737,6 @@ function postRequest(emailAddr, firstName, lastName, fnc) {
     }
   }
 
-  console.log('requesting: '+emailAddr)
   const req = Https.request(options, res => {
     res.on('data', d => {
       try {
