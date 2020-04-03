@@ -27,6 +27,9 @@ const SheetSuffix = ' with VANIDs'
 
 const LightBlue = ' style="background-color:#33C3F0;color:#FFF" '
 const DarkBlue = ' style="background-color:#3365f0;color:#FFF" '
+const ErrorRow = ' style="background-color:#e32636;color:#000" '
+const WarnRow = ' style="background-color:#ffbf00;color:#000" '
+const OkayRow = ' style="background-color:#5f9ea0;color:#000" '
 
 // Use numbers rather than names to make db content less obvious
 const API_KEY = '1'
@@ -34,9 +37,11 @@ const HOST_KEY = '2'
 const PATH_KEY = '3'
 const USER_KEY = '4'
 
-// Global variables because I couldn't figure out how to pass arg to showMissingPersons
+// Global variables because I couldn't figure out how to pass arg to showDetails
 let AugmentResults = []
 let MissingPersons = []
+let PersonsFoundByEmail = []
+let OrgsFound = []
 
 // Global variable because I couldn't figure out how to pass arg to updateOrgsFile
 let OrgFileName = ''
@@ -556,6 +561,8 @@ function augmentWorkbook(workbookName) {
   }
 
   MissingPersons = []
+  PersonsFoundByEmail = []
+  OrgsFound = []
   for (let i = 0; i < jSheet.length; i++) {
     lookupAndInsertVANID(jSheet[i], i, emailKey, firstNameKey, lastNameKey, writeNewWorkbook, closure)
   }
@@ -587,37 +594,61 @@ function writeNewWorkbook(closure) {
 
   AugmentResults = ['Created new "'+sheetName+SheetSuffix+'" sheet in '+workbookName+'.']
   AugmentResults.push('Added VAN IDs to '+found+' out of '+total+' rows.')
-  if (found != total) {
-    AugmentResults.push('<td><input type="button" value="Show Missing Persons"' + LightBlue + 'onclick="showMissingPersons()"></td>')
+  let showButton = false
+  if (MissingPersons.length > 0) {
+    AugmentResults.push('&nbsp;'+MissingPersons.length+' persons not found.')
+    showButton = true
+  }
+  if (PersonsFoundByEmail.length > 0) {
+    AugmentResults.push('&nbsp;'+PersonsFoundByEmail.length+' persons found by email address only.')
+    showButton = true
+  }
+  if (OrgsFound.length > 0) {
+    AugmentResults.push('&nbsp;'+OrgsFound.length+' organizations found locally.')
+    showButton = true
+  }
+  if (showButton) {
+    AugmentResults.push('<td><input type="button" value="Show Details"' + LightBlue + 'onclick="showDetails()"></td>')
   }
   populateTableResults(AugmentResults)
 }
 
-function showMissingPersons() {
+function showDetails() {
 
   AugmentResults.pop()
-  AugmentResults.push('<td><input type="button" value="Hide Missing Persons"' + LightBlue + 'onclick="hideMissingPersons()"></td>')
+  AugmentResults.push('<td><input type="button" value="Hide Details"' + LightBlue + 'onclick="hideDetails()"></td>')
   populateTableResults(AugmentResults)
 
   // Generate the table body
-  let tableBody = '<tr>'
-  tableBody += '<td>First Name</td>'
-  tableBody += '<td>Last Name</td>'
-  tableBody += '<td>Email Address</td>'
-  tableBody += '</tr>'
-  for (let i = 0; i < MissingPersons.length; i++) {
-    tableBody += MissingPersons[i]
+  let tableBody = ''
+  if (MissingPersons.length > 0) {
+    tableBody += '<tr ' + ErrorRow + '><th colspan="3">&nbsp;Missing Persons</th></tr>'
+    for (let i = 0; i < MissingPersons.length; i++) {
+      tableBody += MissingPersons[i]
+    }
+  }
+  if (PersonsFoundByEmail.length > 0) {
+    tableBody += '<tr ' + WarnRow + '><th colspan="3">&nbsp;Persons Found By Email Address Only</th></tr>'
+    for (let i = 0; i < PersonsFoundByEmail.length; i++) {
+      tableBody += PersonsFoundByEmail[i]
+    }
+  }
+  if (OrgsFound.length > 0) {
+    tableBody += '<tr ' + OkayRow + '><th colspan="3">&nbsp;Organizations Found Locally</th></tr>'
+    for (let i = 0; i < OrgsFound.length; i++) {
+      tableBody += OrgsFound[i]
+    }
   }
 
   // Fill the table content
   document.getElementById('table-submain-results').innerHTML = tableBody
 }
 
-function hideMissingPersons() {
+function hideDetails() {
 
   AugmentResults.pop()
 
-  AugmentResults.push('<td><input type="button" value="Show Missing Persons"' + LightBlue + 'onclick="showMissingPersons()"></td>')
+  AugmentResults.push('<td><input type="button" value="Show Details"' + LightBlue + 'onclick="showDetails()"></td>')
   populateTableResults(AugmentResults)
   document.getElementById('table-submain-results').innerHTML = ''
 }
@@ -651,6 +682,7 @@ function lookupAndInsertVANID(jRow, vanID, emailKey, firstNameKey, lastNameKey, 
     console.log('found org email locally: '+email+' with VANID '+vid)
     jRow['VANID'] = vid
     closure.fnd++
+    insertStrangeVANID(OrgsFound, email, first, last)
     fnc(closure)
     return
   }
@@ -658,7 +690,7 @@ function lookupAndInsertVANID(jRow, vanID, emailKey, firstNameKey, lastNameKey, 
   // Must have at least email address for EveryAction find operation
   if (email.length == 0) {
     console.log('no email:'+first+' '+last)
-    insertMissingVANID('', first, last)
+    insertStrangeVANID(MissingPersons, '', first, last)
     fnc(closure)
     return
   }
@@ -666,14 +698,8 @@ function lookupAndInsertVANID(jRow, vanID, emailKey, firstNameKey, lastNameKey, 
   vanID = postRequest(email, first, last, function(vid) {
 
     if (vid == null) {
-      if (email in Organizations) {
-        vid = Organizations[email]
-        console.log('found org locally: '+email+' with VANID '+vid)
-        closure.fnd++
-      } else {
-        console.log('not found: '+email)
-        insertMissingVANID(email, first, last)
-      }
+      console.log('not found: '+email)
+      insertStrangeVANID(MissingPersons, email, first, last)
     } else {
       console.log('found: '+email+' with VANID '+vid)
       closure.fnd++
@@ -684,14 +710,14 @@ function lookupAndInsertVANID(jRow, vanID, emailKey, firstNameKey, lastNameKey, 
   })
 }
 
-function insertMissingVANID(email, first, last) {
+function insertStrangeVANID(persons, email, first, last) {
 
   let tableRow = '<tr>'
   tableRow += '<td>'+first+'</td>'
   tableRow += '<td>'+last+'</td>'
   tableRow += '<td>'+email+'</td>'
   tableRow += '</tr>'
-  MissingPersons.push(tableRow)
+  persons.push(tableRow)
 }
 
 function postRequest(emailAddr, firstName, lastName, fnc) {
@@ -705,7 +731,7 @@ function postRequest(emailAddr, firstName, lastName, fnc) {
     'emails': [ { 'email': emailAddr } ]
   })
 
-  console.log('requesting: '+emailAddr)
+  console.log('requesting: '+firstTry)
   postSingleRequest(firstTry, vanID => {
 
     // if first search failed, look by only email address
@@ -713,8 +739,11 @@ function postRequest(emailAddr, firstName, lastName, fnc) {
       let secondTry = JSON.stringify({
         'emails': [ { 'email': emailAddr } ]
       })
-      console.log('re-requesting: '+emailAddr)
+      console.log('re-requesting: '+secondTry)
       postSingleRequest(secondTry, vanID => {
+        if (vanID != null) {
+          insertStrangeVANID(PersonsFoundByEmail, emailAddr, firstName, lastName)
+        }
         fnc(vanID)
       })
     } else {
