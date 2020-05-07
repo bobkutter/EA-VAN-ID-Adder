@@ -88,7 +88,7 @@ window.onload = function() {
 
   ThisWindow = window
 
-  let dataDir = OS.homedir()+'/.ea-vanid/'
+  let dataDir = OS.homedir()+'/EA-VAN-ID-Adder/'
   console.log('opening dbs in: '+dataDir)
   SettingsDb = Database.open(dataDir+'settings.db')
   OrgsDb = Database.open(dataDir+'orgs.db')
