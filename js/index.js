@@ -121,11 +121,9 @@ window.onload = function() {
 // Populates the main command table
 function populateTableMainWithPassword() {
 
-  v = process.env.npm_package_version
-
   // Generate the table body
   let tableBody = ''
-  tableBody += '<tr><p style="text-align:center">'+v+'</p></tr>'
+  tableBody += '<tr><p style="text-align:center">1.2.1</p></tr>'
   tableBody += '<tr>'
   tableBody += '<p>Must contain at least one number and one uppercase and lowercase letter, and at least 8 or more characters.</p>'
   tableBody += '</tr>'
