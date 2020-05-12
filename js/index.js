@@ -121,8 +121,11 @@ window.onload = function() {
 // Populates the main command table
 function populateTableMainWithPassword() {
 
+  v = process.env.npm_package_version
+
   // Generate the table body
   let tableBody = ''
+  tableBody += '<tr><p style="text-align:center">'+v+'</p></tr>'
   tableBody += '<tr>'
   tableBody += '<p>Must contain at least one number and one uppercase and lowercase letter, and at least 8 or more characters.</p>'
   tableBody += '</tr>'
@@ -588,7 +591,7 @@ function writeNewWorkbook(closure) {
     Xlsx.utils.book_append_sheet(workbook, xNewSheet, sheetName+SheetSuffix)
     Xlsx.writeFile(workbook, workbookName)
   } catch (e) {
-    populateTableResults([+e.message])
+    populateTableResults([e.message])
     return
   }
 
@@ -776,7 +779,8 @@ function postSingleRequest(data, fnc) {
         vanID = jd.vanId
         fnc(vanID)
       } catch (e) {
-        console.log('bad json: '+firstName+' '+lastName+' '+emailAddr)
+        alert('ERROR: '+e.message)
+        console.log('request: '+data+' has bad json: '+d)
       }
     })
   })
@@ -851,8 +855,6 @@ function loadOrganizations(fnc) {
           Organizations[e] = v
 
           let loaded = Object.keys(Organizations).length
-          console.log(loaded+' loaded org: '+e+' with '+Organizations[e])
-
           if (loaded == orgCount) {
             fnc()
           }
