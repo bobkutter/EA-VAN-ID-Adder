@@ -9,7 +9,7 @@
   "author": "Bob Kutter",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^9.4.4"
+    "electron": "^11.5.0"
   },
   "dependencies": {
     "cryptr": "^6.0.1",
