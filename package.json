@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "cryptr": "^6.0.1",
-    "minimist": ">=1.2.2",
+    "minimist": ">=1.2.6",
     "nedb": "^1.8.0",
     "xlsx": "^0.15.4"
   }
